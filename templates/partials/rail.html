@@ -1,0 +1,24 @@
+<aside class="rail">
+  <div id="railAd1"><div class="skeleton" style="height:130px"></div></div>
+
+  <section class="card rail-card">
+    <h3>How launching works</h3>
+    <ol class="steps">
+      <li><b>Submit</b><span>Tell us about your product. We review within 48 hours.</span></li>
+      <li><b>Launch</b><span>Go live right away, or schedule a date and time.</span></li>
+      <li><b>Get upvoted</b><span>The most upvoted products of each day, week and month rise to the top.</span></li>
+    </ol>
+    <a class="btn btn-primary" href="{% url 'submit' %}">Launch Your Product</a>
+  </section>
+
+  <div id="railAd2"><div class="skeleton" style="height:130px"></div></div>
+
+  <section class="card rail-card promo">
+    <span class="badge badge-premium"><svg class="i"><use href="#i-star"/></svg>Premium</span>
+    <h3>Stand out with a Premium launch</h3>
+    <p class="muted">Gold badge, priority review and a front-of-queue spot.</p>
+    <a class="link" href="{% url 'pricing' %}">See plans</a>
+  </section>
+
+  <nav class="rail-links"><a href="{% url 'top' %}">Leaderboard</a><a href="{% url 'pricing' %}">Pricing</a><a href="{% url 'advertise' %}">Advertise</a></nav>
+</aside>

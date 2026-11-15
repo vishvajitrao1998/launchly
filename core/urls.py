@@ -15,6 +15,7 @@ urlpatterns = [
     path("login/", auth_views.LoginView.as_view(), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("signup/", views.signup, name="signup"),
+    path("top/", views.top_page, name="top"),
 
     # public API
     path("api/me/", api.me),
@@ -26,6 +27,8 @@ urlpatterns = [
     path("api/products/<slug:slug>/", api.product_detail),
     path("api/ads/board/", api.ad_board),
     path("api/pricing/", api.pricing),
+    path("api/top/", api.top),
+    path("api/rail/", api.rail),
 
     # maker API
     path("api/me/products/", api.my_products),

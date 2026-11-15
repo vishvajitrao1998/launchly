@@ -116,6 +116,7 @@ AD_PRICING = {  # per week
     "spotlight": {"INR": 2499, "USD": 29},
     "cat_first": {"INR": 1999, "USD": 24},
     "cat_third": {"INR": 1299, "USD": 15},
+    "sidebar":   {"INR": 1499, "USD": 18},
 }
 AD_HOLD_MINUTES = 15  # an unpaid booking blocks the slot this long
 

@@ -26,7 +26,8 @@ def paginate(request, qs, fn, size=12):
         page = pg.page(request.GET.get("page") or 1)
     except (EmptyPage, PageNotAnInteger):
         page = pg.page(1)
-    return {"results": [fn(o) for o in page.object_list], "page": page.number, "pages": pg.num_pages, "total": pg.count}
+    return {"results": [fn(o) for o in page.object_list], "page": page.number,
+            "pages": pg.num_pages, "total": pg.count, "start": page.start_index()}
 
 # ---------------------------------------------------------------- helpers ---
 def user_state(request):
@@ -127,11 +128,22 @@ def feed(request):
         items += [product_dict(p, state) for p in organic]
         sections.append({"category": cat_dict(c), "items": items})
 
+    def top_block(title, kind, offset, limit=5):
+        s, e, _, _ = services.period_range(kind, offset)
+        qs = live.filter(launch_at__gte=s, launch_at__lt=e).order_by("-upvote_count", "-launch_at")[:limit]
+        return {"title": title, "kind": kind, "offset": offset, "items": [product_dict(p, state) for p in qs]}
+
     return Response({
         "hero": ad_or_open("hero"),
         "spotlight": [ad_or_open("spotlight", None, i) for i in (1, 2, 3)],
         "sections": sections,
         "latest": [product_dict(p, state) for p in live.order_by("-launch_at")[:6]],
+        "top": [
+            top_block("Top Products Launching Today", "day", 0),
+            top_block("Yesterday's Top Products", "day", 1),
+            top_block("Last Week's Top Products", "week", 1),
+            top_block("Last Month's Top Products", "month", 1),
+        ],
     })
 
 
@@ -346,3 +358,42 @@ def store_screenshots(product, files, remove):
     start = product.screenshots.count()
     for i, f in enumerate(files):
         ProductScreenshot.objects.create(product=product, image=f, order=start + i)
+
+
+
+LIMITS = {"day": 60, "week": 104, "month": 36}
+
+
+@api_view(["GET"])
+def top(request):
+    kind = request.GET.get("kind", "day")
+    if kind not in LIMITS:
+        kind = "day"
+    try:
+        offset = min(max(int(request.GET.get("offset", 0)), 0), LIMITS[kind])
+    except ValueError:
+        offset = 0
+    s, e, label, sub = services.period_range(kind, offset)
+    qs = (Product.objects.live().filter(launch_at__gte=s, launch_at__lt=e)
+          .select_related("category").order_by("-upvote_count", "-launch_at"))
+    state = user_state(request)
+    data = paginate(request, qs, lambda p: product_dict(p, state), size=15)
+    data.update(kind=kind, offset=offset, label=label, sub=sub,
+                has_prev=offset < LIMITS[kind], has_next=offset > 0)
+    return Response(data)
+
+
+@api_view(["GET"])
+def rail(request):
+    """The two right-sidebar ad slots."""
+    cur = services.get_currency(request)
+    booked = {a.position: a.product for a in AdSlot.objects.active_on(timezone.localdate())
+              .filter(slot_type="sidebar", product__status=Product.Status.APPROVED)
+              .select_related("product__category")}
+    out = []
+    for pos in (1, 2):
+        p = booked.get(pos)
+        out.append(product_dict(p, sponsored=True) if p else {
+            "slot_open": True, "slot_type": "sidebar", "category": "", "position": pos,
+            "label": services.slot_label("sidebar", None, pos), "price": services.slot_price("sidebar", cur)})
+    return Response({"ads": out})

@@ -141,6 +141,7 @@ class AdSlot(models.Model):
         SPOTLIGHT = "spotlight", "Sponsored spotlight"
         CAT_FIRST = "cat_first", "Category list – 1st position"
         CAT_THIRD = "cat_third", "Category list – 3rd position"
+        SIDEBAR = "sidebar", "Right sidebar"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Awaiting payment"

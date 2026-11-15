@@ -5,20 +5,36 @@
   const pages = {};
   const localDate = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
+    /* ---------- shared: rank rows + right rail ---------- */
+  const rankItem = (p, rank, i = 0) =>
+    `<div class="rank-item ${rank <= 3 ? 'top3' : ''}"><span class="rank">${rank}</span>${appCard(p, i)}</div>`;
+
+  const sideAd = p => p.slot_open
+    ? `<a class="side-ad open" href="/advertise/?slot=sidebar&position=${p.position}"><span class="badge badge-sponsor">Ad slot</span><b>Your product here</b><span>${esc(p.label)} · from ${money(p.price)}/week</span></a>`
+    : `<a class="side-ad" href="/product/${esc(p.slug)}/"><span class="badge badge-sponsor">Sponsored</span>
+        <div class="side-row"><div class="logo" style="--c:${esc(p.category.color)}">${logoHtml(p)}</div><div><b>${esc(p.name)}</b><p>${esc(p.tagline)}</p></div></div></a>`;
+
+  async function fillRail() {
+    try {
+      const { ads } = await api('/api/rail/');
+      ads.forEach((p, i) => { const el = $('#railAd' + (i + 1)); if (el) el.innerHTML = sideAd(p); });
+    } catch (e) { /* the rail is optional */ }
+  }
+
   /* ======================= HOME ======================= */
-  pages.home = async () => {
+    pages.home = async () => {
     const q = new URLSearchParams(location.search).get('q');
     $('#heroAd').innerHTML = skel(1, 260);
     $('#spotlight').innerHTML = skel(3, 90);
     $('#feed').innerHTML = skel(4, 90);
-    api('/api/ads/board/').then(d => renderBoard($('#board'), d));
+    fillRail();
 
     const [cats, feed] = await Promise.all([api('/api/categories/'), api('/api/feed/')]);
 
     // hero ad (paid)
     const h = feed.hero;
     $('#heroAd').innerHTML = h.slot_open
-      ? `<div class="hero-banner open reveal"><div><div class="tagline">📣 Reserved for advertisers</div><h3>Your product, front and centre</h3><p>The hero banner is the first thing every visitor sees. Book it from ${rupee(h.price)}/week.</p></div><a class="btn" href="/advertise/?slot=hero">Book the hero slot</a></div>`
+      ? `<div class="hero-banner open reveal"><div><div class="tagline">📣 Reserved for advertisers</div><h3>Your product, front and centre</h3><p>The hero banner is the first thing every visitor sees. Book it from ${money(h.price)}/week.</p></div><a class="btn" href="/advertise/?slot=hero">Book the hero slot</a></div>`
       : `<div class="hero-banner reveal"><div><div class="tagline"><svg class="i" style="width:14px;height:14px"><use href="#i-star"/></svg>Sponsored</div>
           <div class="logo" style="margin-top:14px">${logoHtml(h)}</div><h3>${esc(h.name)}</h3><p>${esc(h.tagline)}</p></div>
           <a class="btn" href="/product/${esc(h.slug)}/">Take a look</a></div>`;
@@ -26,11 +42,18 @@
     // sponsored spotlight (3 paid tiles)
     $('#spotlight').innerHTML = feed.spotlight.map((p, i) => appCard(p, i)).join('');
 
-    // categories + feed
-    let active = '';
+    // top products: today / yesterday / last week / last month
+    $('#topSections').innerHTML = feed.top.map(t => t.items.length ? `
+      <section class="block">
+        <div class="block-head"><h2>${esc(t.title)}</h2><a class="link" href="/top/?kind=${t.kind}&offset=${t.offset}">See all</a></div>
+        <div class="rank-list">${t.items.map((p, i) => rankItem(p, i + 1, i)).join('')}</div>
+      </section>` : '').join('');
+
+    // categories + feed (with load more when one category is selected)
+    let active = '', page = 1, seen = new Set();
     $('#cats').innerHTML = `<button class="chip on" data-cat="">✨ All</button>` + cats.map(c =>
       `<button class="chip" data-cat="${esc(c.slug)}" style="--c:${esc(c.color)}">${esc(c.icon)} ${esc(c.name)} <small>${c.count}</small></button>`).join('');
-    let page = 1, seen = new Set();
+
     const drawFeed = () => {
       const list = feed.sections.filter(s => !active || s.category.slug === active);
       const total = cats.find(c => c.slug === active)?.count || 0;
@@ -58,14 +81,9 @@
     });
     drawFeed();
 
-    if (feed.latest.length) {
-      $('#latestWrap').hidden = false;
-      $('#latest').innerHTML = feed.latest.map((p, i) => appCard(p, i)).join('');
-    }
-
     // search results replace the feed
     if (q) {
-      $('#feed').hidden = true; $('#latestWrap').hidden = true;
+      $('#feed').hidden = true; $('#topSections').hidden = true;
       const box = $('#searchResults'); box.hidden = false;
       box.innerHTML = `<section class="block"><div class="block-head"><h2>Results for “${esc(q)}”</h2></div><div id="resGrid" class="app-grid"></div><div id="resPager"></div></section>`;
       const load = async n => {
@@ -76,6 +94,38 @@
       };
       load(1);
     }
+  };
+
+    /* ======================= LEADERBOARD ======================= */
+  pages.top = async () => {
+    const qs = new URLSearchParams(location.search);
+    let kind = ['day', 'week', 'month'].includes(qs.get('kind')) ? qs.get('kind') : 'day';
+    let offset = Math.max(0, parseInt(qs.get('offset')) || 0), page = 1;
+    fillRail();
+
+    async function load() {
+      $('#topList').innerHTML = skel(6, 84);
+      const d = await api(`/api/top/?kind=${kind}&offset=${offset}&page=${page}`);
+      kind = d.kind; offset = d.offset;
+      history.replaceState(null, '', `/top/?kind=${kind}&offset=${offset}`);
+      $$('#kindTabs .tab').forEach(t => t.classList.toggle('on', t.dataset.kind === kind));
+      $('#rangeLabel b').textContent = d.label;
+      $('#rangeLabel span').textContent = d.sub;
+      $('#prevRange').disabled = !d.has_prev;
+      $('#nextRange').disabled = !d.has_next;
+      $('#topList').innerHTML = d.results.length
+        ? d.results.map((p, i) => rankItem(p, d.start + i, i)).join('')
+        : '<div class="empty">No launches in this period yet.</div>';
+      pager($('#topPager'), d, n => { page = n; load(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    }
+
+    $('#kindTabs').addEventListener('click', e => {
+      const t = e.target.closest('[data-kind]'); if (!t) return;
+      kind = t.dataset.kind; offset = 0; page = 1; load();
+    });
+    $('#prevRange').onclick = () => { offset++; page = 1; load(); };
+    $('#nextRange').onclick = () => { offset = Math.max(0, offset - 1); page = 1; load(); };
+    load();
   };
 
   /* ======================= PRICING ======================= */

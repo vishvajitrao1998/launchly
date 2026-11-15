@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block page %}top{% endblock %}
+{% block title %}Leaderboard · Launchly{% endblock %}
+{% block content %}
+<div class="with-rail">
+  <div class="primary">
+    <section class="page-head"><h1>Top Products</h1><p class="muted">The most upvoted launches, ranked.</p></section>
+    <div class="top-controls">
+      <div id="kindTabs" class="tabs">
+        <button class="tab" data-kind="day">Daily</button>
+        <button class="tab" data-kind="week">Weekly</button>
+        <button class="tab" data-kind="month">Monthly</button>
+      </div>
+      <div class="range-nav">
+        <button class="icon-btn" id="prevRange" aria-label="Previous period">‹</button>
+        <div id="rangeLabel"><b></b><span class="muted"></span></div>
+        <button class="icon-btn" id="nextRange" aria-label="Next period">›</button>
+      </div>
+    </div>
+    <div id="topList" class="rank-list"></div>
+    <div id="topPager"></div>
+  </div>
+  {% include "partials/rail.html" %}
+</div>
+{% endblock %}

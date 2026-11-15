@@ -6,6 +6,8 @@ from django.shortcuts import redirect, render
 
 from .forms import SignupForm
 
+def top_page(request):
+    return render(request, "top.html")
 
 def home(request):
     return render(request, "home.html")

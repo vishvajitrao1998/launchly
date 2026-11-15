@@ -66,9 +66,13 @@ def book_ad(request):
     category = None
     if slot_type in ("cat_first", "cat_third"):
         category = get_object_or_404(Category, slug=d.get("category"))
-    position = int(d.get("position") or 1) if slot_type == "spotlight" else 1
-    if slot_type == "spotlight" and position not in (1, 2, 3):
-        return Response({"detail": "Spotlight position must be 1-3."}, status=400)
+        max_pos = {"spotlight": 3, "sidebar": 2}.get(slot_type, 1)
+    try:
+        position = int(d.get("position") or 1) if max_pos > 1 else 1
+    except ValueError:
+        position = 0
+    if not 1 <= position <= max_pos:
+        return Response({"detail": f"Position must be between 1 and {max_pos}."}, status=400)
 
     try:
         product_id = int(d.get("product"))

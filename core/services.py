@@ -6,7 +6,7 @@ from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import F, Sum
 from django.utils import timezone
-
+from datetime import date, datetime, time, timedelta
 from .models import AdSlot, Category, Payment, Product, Subscription
 
 SLOT_INFO = {
@@ -39,12 +39,15 @@ def slot_label(slot_type, category=None, position=1):
         return "Hero banner"
     if slot_type == "spotlight":
         return f"Spotlight #{position}"
+    if slot_type == "sidebar":
+        return f"Sidebar #{position}"
     return f"{ORDINAL[1 if slot_type == 'cat_first' else 3]} position"
 
 
 def slot_defs():
     defs = [{"slot_type": "hero", "category": None, "position": 1}]
     defs += [{"slot_type": "spotlight", "category": None, "position": i} for i in (1, 2, 3)]
+    defs += [{"slot_type": "sidebar", "category": None, "position": i} for i in (1, 2)]
     for c in Category.objects.all():
         defs.append({"slot_type": "cat_first", "category": c, "position": 1})
         defs.append({"slot_type": "cat_third", "category": c, "position": 1})
@@ -149,3 +152,33 @@ def fulfil_payment(payment, razorpay_payment_id=""):
         payment.ad_slot.status = AdSlot.Status.ACTIVE
         payment.ad_slot.save(update_fields=["status"])
     return payment
+
+
+
+def _aware(d):
+    return timezone.make_aware(datetime.combine(d, time.min))
+
+
+def period_range(kind, offset=0):
+    """kind: day | week | month. offset 0 = current, 1 = previous... Returns (start, end_exclusive, label, sub)."""
+    today = timezone.localdate()
+    if kind == "day":
+        s = today - timedelta(days=offset)
+        e = s + timedelta(days=1)
+        label = "Today" if offset == 0 else "Yesterday" if offset == 1 else f"{s:%A}"
+        sub = f"{s:%d %b %Y}"
+    elif kind == "week":
+        s = today - timedelta(days=today.weekday()) - timedelta(weeks=offset)
+        e = s + timedelta(days=7)
+        label = "This week" if offset == 0 else "Last week" if offset == 1 else f"{offset} weeks ago"
+        sub = f"{s:%d %b} – {(e - timedelta(days=1)):%d %b %Y}"
+    else:
+        y, m = today.year, today.month - offset
+        while m <= 0:
+            m += 12
+            y -= 1
+        s = date(y, m, 1)
+        e = date(y + (m == 12), m % 12 + 1, 1)
+        label = "This month" if offset == 0 else "Last month" if offset == 1 else f"{s:%B}"
+        sub = f"{s:%B %Y}"
+    return _aware(s), _aware(e), label, sub

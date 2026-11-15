@@ -95,7 +95,7 @@
   function appCard(p, i = 0) {
     if (p.slot_open) {
       return `<a class="app-card slot-open reveal" style="--i:${i}" href="/advertise/?slot=${esc(p.slot_type)}&category=${esc(p.category)}&position=${p.position}">
-        <b>Your app here</b><span class="muted">${esc(p.label)} · from ${rupee(p.price)}/week</span></a>`;
+        <b>Your App Here</b><span class="muted">${esc(p.label)} · from ${rupee(p.price)}/week</span></a>`;
     }
     return `<article class="app-card reveal ${p.is_premium ? 'is-premium' : ''} ${p.sponsored ? 'sponsored' : ''}" style="--i:${i}" data-id="${p.id}">
       <a class="logo" href="/product/${esc(p.slug)}/" style="--c:${esc(p.category.color)}">${logoHtml(p)}</a>
