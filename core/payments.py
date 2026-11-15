@@ -25,13 +25,18 @@ def rz_client():
     return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 
-def _checkout(user, kind, amount_inr, description, **fk):
-    order = rz_client().order.create({
-        "amount": amount_inr * 100, "currency": "INR",
-        "receipt": f"{kind}-{user.id}-{int(time.time())}", "notes": {"user": user.id, "kind": kind},
-    })
-    Payment.objects.create(user=user, kind=kind, amount_inr=amount_inr, razorpay_order_id=order["id"], **fk)
-    return {"key": settings.RAZORPAY_KEY_ID, "amount": amount_inr * 100, "currency": "INR",
+def _checkout(user, kind, amount, currency, description, **fk):
+    try:
+        order = rz_client().order.create({
+            "amount": amount * 100, "currency": currency,   # paise / cents
+            "receipt": f"{kind}-{user.id}-{int(time.time())}", "notes": {"user": user.id, "kind": kind}})
+    except RuntimeError:
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Razorpay could not create the order: {e}")
+    Payment.objects.create(user=user, kind=kind, amount=amount, currency=currency,
+                           razorpay_order_id=order["id"], **fk)
+    return {"key": settings.RAZORPAY_KEY_ID, "amount": amount * 100, "currency": currency,
             "order_id": order["id"], "name": "Launchly", "description": description,
             "prefill": {"name": user.get_full_name() or user.username, "email": user.email}}
 
@@ -40,10 +45,12 @@ def _checkout(user, kind, amount_inr, description, **fk):
 @permission_classes([IsAuthenticated])
 def buy_plan(request):
     plan = get_object_or_404(Plan, slug=request.data.get("plan"))
-    if plan.price_inr <= 0:
+    cur = services.get_currency(request)
+    price = services.plan_price(plan, cur)
+    if price <= 0:
         return Response({"detail": "This plan is free."}, status=400)
     try:
-        return Response({"checkout": _checkout(request.user, "plan", plan.price_inr, f"{plan.name} plan", plan=plan)})
+        return Response({"checkout": _checkout(request.user, "plan", price, cur, f"{plan.name} plan", plan=plan)})
     except RuntimeError as e:
         return Response({"detail": str(e)}, status=503)
 
@@ -53,7 +60,8 @@ def buy_plan(request):
 def book_ad(request):
     d = request.data
     slot_type = d.get("slot_type")
-    if slot_type not in settings.AD_PRICING_INR:
+    cur = services.get_currency(request)
+    if slot_type not in settings.AD_PRICING:
         return Response({"detail": "Unknown slot."}, status=400)
     category = None
     if slot_type in ("cat_first", "cat_third"):
@@ -79,12 +87,13 @@ def book_ad(request):
     if services.slot_taken(slot_type, category.id if category else None, position, start, end):
         return Response({"detail": "That slot is already booked for the selected dates."}, status=409)
 
-    amount = services.slot_price(slot_type) * weeks
+    amount = services.slot_price(slot_type, cur) * weeks
     slot = AdSlot.objects.create(slot_type=slot_type, category=category, position=position,
                                  product=product, starts_on=start, ends_on=end)
     try:
-        checkout = _checkout(request.user, "ad", amount,
+        checkout = _checkout(request.user, "ad", amount,cur,
                              f"{services.slot_label(slot_type, category, position)} × {weeks}w", ad_slot=slot)
+
     except RuntimeError as e:
         slot.delete()
         return Response({"detail": str(e)}, status=503)

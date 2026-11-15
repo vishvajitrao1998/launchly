@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 
 from . import services
-from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote
+from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote, ProductScreenshot
 
 
 @admin.register(Category)
@@ -47,7 +47,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ("name", "price_inr", "premium_launches", "highlighted", "order")
+    list_display = ("name", "price_inr", "price_usd", "premium_launches", "highlighted", "order")
 
 
 @admin.register(AdSlot)
@@ -58,9 +58,13 @@ class AdSlotAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ("razorpay_order_id", "user", "kind", "amount_inr", "status", "created_at")
+    list_display = ("razorpay_order_id", "user", "kind", "amount", "currency", "status", "created_at")
     list_filter = ("kind", "status")
     readonly_fields = [f.name for f in Payment._meta.fields]
 
 
 admin.site.register([Subscription, Upvote, Like])
+
+
+
+admin.site.register(ProductScreenshot)

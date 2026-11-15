@@ -3,16 +3,16 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from core.models import Category, Plan, Product
-
+ 
 CATS = [("AI Tools", "🤖", "#8b5cf6"), ("Productivity", "⚡", "#6366f1"), ("Developer Tools", "🧑‍💻", "#0ea5e9"),
         ("Design", "🎨", "#ec4899"), ("Marketing", "📈", "#f59e0b"), ("Fintech", "💳", "#10b981")]
 
 PLANS = [
-    dict(slug="free", name="Starter", tagline="Launch your first product", price_inr=0, premium_launches=0, order=1,
+    dict(slug="free", name="Starter", tagline="Launch your first product", price_inr=0, price_usd=0, premium_launches=0, order=1,
          features=["Unlimited standard launches", "Schedule launches ahead of time", "Upvotes, likes & maker profile", "Community support"]),
-    dict(slug="pro", name="Pro", tagline="For makers who launch often", price_inr=999, premium_launches=3, order=2, highlighted=True,
+    dict(slug="pro", name="Pro", tagline="For makers who launch often", price_inr=999, price_usd=12, premium_launches=3, order=2, highlighted=True,
          features=["3 Premium launches / month", "Premium badge on your listing", "Priority review (within 24h)", "Schedule launches ahead of time", "Email support"]),
-    dict(slug="scale", name="Scale", tagline="For studios & teams", price_inr=2499, premium_launches=10, order=3,
+    dict(slug="scale", name="Scale", tagline="For studios & teams", price_inr=2499, price_usd=29, premium_launches=10, order=3,
          features=["10 Premium launches / month", "Premium badge on every launch", "Fastest review queue", "Launch analytics", "Priority support"]),
 ]
 

@@ -30,7 +30,18 @@
 
   /* ---------- helpers ---------- */
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const rupee = n => '₹' + Number(n).toLocaleString('en-IN');
+  const getCookie = n => (document.cookie.match(new RegExp('(?:^|; )' + n + '=([^;]*)')) || [])[1];
+  const cur = ['INR', 'USD'].includes(getCookie('currency')) ? getCookie('currency') : 'INR';
+  const money = n => new Intl.NumberFormat(cur === 'USD' ? 'en-US' : 'en-IN', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(n);
+  const rupee = money;   // keeps the old call sites working
+  const currencySel = $('#currencySelect');
+  if (currencySel) {
+    currencySel.value = cur;
+    currencySel.addEventListener('change', () => {
+      document.cookie = `currency=${currencySel.value}; path=/; max-age=31536000; SameSite=Lax`;
+      location.reload();
+    });
+  }
   const initials = n => (n || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const fmtDate = (iso, time) => {
     const d = iso.length === 10 ? new Date(iso + 'T00:00:00') : new Date(iso);
@@ -115,20 +126,19 @@
   });
 
   /* ---------- ad slot board ---------- */
-  function renderBoard(el, data) {
-    const wk = data.weeks;
-    const cell = (c, r, w) => {
-      if (!c) return `<td><a class="cell free" data-key="${esc(r.key)}" data-start="${w.from}" href="/advertise/?slot=${r.slot_type}&category=${esc(r.category)}&position=${r.position}&start=${w.from}">Available</a></td>`;
-      const mini = c.logo ? `<img src="${esc(c.logo)}" alt="">` : `<span class="mini">${esc(initials(c.name))}</span>`;
-      return `<td><span class="cell ${c.pending ? 'held' : 'booked'}" title="${c.pending ? 'Payment in progress' : 'Booked until ' + fmtDate(c.until)}">${mini}<span>${c.pending ? 'Reserved' : esc(c.name)}</span></span></td>`;
-    };
-    let rows = '', group = '';
-    data.rows.forEach(r => {
-      if (r.group !== group) { group = r.group; rows += `<tr class="grp"><td colspan="${wk.length + 2}">${esc(r.icon)} ${esc(group)}</td></tr>`; }
-      rows += `<tr><td>${esc(r.label)}</td><td class="price">${rupee(r.price)}</td>${r.cells.map((c, i) => cell(c, r, wk[i])).join('')}</tr>`;
-    });
-    el.innerHTML = `<table class="board"><thead><tr><th>Slot</th><th>Per week</th>${wk.map(w => `<th>${fmtDate(w.from)} – ${fmtDate(w.to)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
-  }
+  function renderBoard(el, data, { home = false } = {}) {
+  const wk = data.weeks;
+  const cell = (c, r, w) => {
+    if (!c) return `<td><a class="cell free" data-key="${esc(r.key)}" data-start="${w.from}" href="/advertise/?slot=${r.slot_type}&category=${esc(r.category)}&position=${r.position}&start=${w.from}">Available</a></td>`;
+    const mini = c.logo ? `<img src="${esc(c.logo)}" alt="">` : `<span class="mini">${esc(initials(c.name))}</span>`;
+    return `<td><span class="cell ${c.pending ? 'held' : 'booked'}" title="${c.pending ? 'Payment in progress' : 'Booked until ' + fmtDate(c.until)}">${mini}<span>${c.pending ? 'Reserved' : esc(c.name)}</span></span></td>`;
+  };
+  const table = rows => `<table class="board"><thead><tr><th>Slot</th><th>Per week</th>${wk.map(w => `<th>${fmtDate(w.from)} – ${fmtDate(w.to)}</th>`).join('')}</tr></thead><tbody>${
+    rows.map(r => `<tr><td><div class="slot-name"><span class="cat-ico sm">${esc(r.icon)}</span><b>${esc(r.group)}</b><span class="muted">${esc(r.label)}</span></div></td>
+      <td class="price">${money(r.price)}</td>${r.cells.map((c, i) => cell(c, r, wk[i])).join('')}</tr>`).join('')}</tbody></table>`;
+  el.innerHTML = table(data.rows.filter(r => r.category))
+    + (home ? `<div class="board-sep">Home page placements</div>` + table(data.rows.filter(r => !r.category)) : '');
+}
 
   /* ---------- Razorpay Checkout ---------- */
   function pay(checkout) {
@@ -144,5 +154,58 @@
     });
   }
 
-  window.L = { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, rupee, initials, fmtDate, skel, logoHtml, premiumBadge };
+  /* ---------- modern dropdown (enhances every <select>) ---------- */
+function enhanceSelects(scope = document) {
+  const nativeValue = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  $$('select:not([data-dd])', scope).forEach(sel => {
+    sel.dataset.dd = '1'; sel.classList.add('dd-native');
+    const wrap = document.createElement('div');
+    wrap.className = 'dd'; wrap.dataset.size = sel.dataset.size || '';
+    wrap.innerHTML = '<button type="button" class="dd-btn" aria-haspopup="listbox" aria-expanded="false"><span class="dd-val"></span><svg class="i"><use href="#i-down"/></svg></button><ul class="dd-menu" role="listbox"></ul>';
+    sel.after(wrap);
+    const btn = wrap.firstElementChild, menu = wrap.lastElementChild, val = $('.dd-val', wrap);
+    const item = o => `<li class="dd-opt ${o.selected ? 'on' : ''}" role="option" data-v="${esc(o.value)}" ${o.disabled ? 'aria-disabled="true"' : ''}><span>${esc(o.textContent)}</span><svg class="i"><use href="#i-check"/></svg></li>`;
+    const build = () => {
+      menu.innerHTML = [...sel.children].map(c => c.tagName === 'OPTGROUP'
+        ? `<li class="dd-group">${esc(c.label)}</li>` + [...c.children].map(item).join('') : item(c)).join('');
+      const o = sel.options[sel.selectedIndex];
+      val.textContent = o ? o.textContent : ''; val.classList.toggle('ph', !o || o.value === '');
+    };
+    const setOpen = on => { wrap.classList.toggle('open', on); btn.setAttribute('aria-expanded', on); if (on) $('.dd-opt.on', menu)?.scrollIntoView({ block: 'nearest' }); };
+    const choose = v => { sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); };
+    // programmatic `select.value = x` also refreshes the UI
+    Object.defineProperty(sel, 'value', { configurable: true, get() { return nativeValue.get.call(this); }, set(v) { nativeValue.set.call(this, v); build(); } });
+    new MutationObserver(build).observe(sel, { childList: true, subtree: true });
+    btn.onclick = e => { e.stopPropagation(); const on = !wrap.classList.contains('open'); $$('.dd.open').forEach(d => d.classList.remove('open')); setOpen(on); };
+    menu.onclick = e => { const li = e.target.closest('.dd-opt'); if (!li || li.getAttribute('aria-disabled')) return; choose(li.dataset.v); setOpen(false); btn.focus(); };
+    btn.onkeydown = e => {
+      if (e.key === 'Escape') return setOpen(false);
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const opts = [...sel.options].filter(o => !o.disabled), i = opts.indexOf(sel.options[sel.selectedIndex]);
+      const n = opts[Math.max(0, Math.min(opts.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+      if (n) { choose(n.value); $('.dd-opt.on', menu)?.scrollIntoView({ block: 'nearest' }); }
+    };
+    build();
+  });
+}
+
+function pager(el, { page, pages }, go) {
+  if (pages <= 1) { el.innerHTML = ''; return; }
+  const nums = [];
+  for (let n = 1; n <= pages; n++) {
+    if (n === 1 || n === pages || Math.abs(n - page) <= 1) nums.push(n);
+    else if (nums[nums.length - 1] !== '…') nums.push('…');
+  }
+  el.className = 'pager';
+  el.innerHTML = `<button class="pg" data-p="${page - 1}" ${page === 1 ? 'disabled' : ''} aria-label="Previous">‹</button>`
+    + nums.map(n => n === '…' ? '<span class="pg gap">…</span>' : `<button class="pg ${n === page ? 'on' : ''}" data-p="${n}">${n}</button>`).join('')
+    + `<button class="pg" data-p="${page + 1}" ${page === pages ? 'disabled' : ''} aria-label="Next">›</button>`;
+  el.onclick = e => { const b = e.target.closest('[data-p]'); if (b && !b.disabled) go(+b.dataset.p); };
+}
+
+document.addEventListener('click', () => $$('.dd.open').forEach(d => d.classList.remove('open')));
+enhanceSelects();
+
+  window.L = { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, rupee, money, initials, fmtDate, skel, logoHtml, premiumBadge, pager, enhanceSelects };
 })();

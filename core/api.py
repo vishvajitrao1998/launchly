@@ -10,10 +10,23 @@ from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-
+from PIL import Image
 from . import services
-from .models import AdSlot, Category, Like, Plan, Product, Upvote
+from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 
+
+def paginate(request, qs, fn, size=12):
+    try:
+        size = min(max(int(request.GET.get("page_size", size)), 1), 50)
+    except ValueError:
+        pass
+    pg = Paginator(qs, size)
+    try:
+        page = pg.page(request.GET.get("page") or 1)
+    except (EmptyPage, PageNotAnInteger):
+        page = pg.page(1)
+    return {"results": [fn(o) for o in page.object_list], "page": page.number, "pages": pg.num_pages, "total": pg.count}
 
 # ---------------------------------------------------------------- helpers ---
 def user_state(request):
@@ -67,16 +80,16 @@ def products(request):
         qs = qs.filter(Q(name__icontains=q) | Q(tagline__icontains=q))
     qs = qs.order_by("-launch_at" if request.GET.get("sort") == "new" else "-upvote_count", "-launch_at")
     state = user_state(request)
-    return Response([product_dict(p, state) for p in qs[:60]])
-
+    return Response(paginate(request, qs, lambda p: product_dict(p, state)))
+ 
 
 @api_view(["GET"])
 def product_detail(request, slug):
-    p = get_object_or_404(Product.objects.select_related("category", "owner"), slug=slug)
+    p = get_object_or_404(Product.objects.select_related("category", "owner").prefetch_related("screenshots"), slug=slug)
     if not p.is_live and not (request.user.is_authenticated and (request.user == p.owner or request.user.is_staff)):
         return Response({"detail": "Not found."}, status=404)
     d = product_dict(p, user_state(request))
-    d.update(description=p.description, maker=p.owner.username, is_live=p.is_live, status=p.status)
+    d.update(description=p.description, maker=p.owner.username, is_live=p.is_live, status=p.status, screenshots=[s.image.url for s in p.screenshots.all()])
     return Response(d)
 
 
@@ -85,6 +98,7 @@ def feed(request):
     """Everything the home page needs in ONE request."""
     state = user_state(request)
     today = timezone.localdate()
+    cur = services.get_currency(request)
     ads = {}
     for a in AdSlot.objects.active_on(today).select_related("product__category"):
         if a.product.status == Product.Status.APPROVED:
@@ -95,7 +109,7 @@ def feed(request):
         if p:
             return product_dict(p, state, sponsored=True)
         return {"slot_open": True, "slot_type": slot_type, "category": cat.slug if cat else "", "position": pos,
-                "label": services.slot_label(slot_type, cat, pos), "price": services.slot_price(slot_type)}
+                "label": services.slot_label(slot_type, cat, pos), "price": services.slot_price(slot_type, cur)}
 
     sections = []
     live = Product.objects.live().select_related("category")
@@ -128,6 +142,7 @@ def ad_board(request):
     weeks = [{"from": today + timedelta(days=7 * i), "to": today + timedelta(days=7 * i + 6)} for i in range(4)]
     held = list(AdSlot.objects.held().filter(ends_on__gte=today).select_related("product"))
     rows = []
+    cur = services.get_currency(request)
     for d in services.slot_defs():
         cat = d["category"]
         ident = (d["slot_type"], cat.id if cat else None, d["position"])
@@ -145,18 +160,19 @@ def ad_board(request):
             "category": cat.slug if cat else "", "icon": cat.icon if cat else "📣",
             "group": cat.name if cat else "Home page",
             "label": services.slot_label(d["slot_type"], cat, d["position"]),
-            "price": services.slot_price(d["slot_type"]), "cells": cells})
+            "price": services.slot_price(d["slot_type"], cur), "cells": cells})
     return Response({"weeks": weeks, "rows": rows})
 
 
 @api_view(["GET"])
 def pricing(request):
-    plans = [{"slug": p.slug, "name": p.name, "tagline": p.tagline, "price": p.price_inr,
+    cur = services.get_currency(request)
+    plans = [{"slug": p.slug, "name": p.name, "tagline": p.tagline, "price": services.plan_price(p, cur),
               "period_days": p.period_days, "premium_launches": p.premium_launches,
               "features": p.features, "highlighted": p.highlighted} for p in Plan.objects.all()]
     ads = [{"slot_type": k, "name": services.SLOT_INFO[k][0], "description": services.SLOT_INFO[k][1],
-            "price": v} for k, v in settings.AD_PRICING_INR.items()]
-    return Response({"plans": plans, "ads": ads})
+            "price": v[cur]} for k, v in settings.AD_PRICING.items()]
+    return Response({"currency": cur, "plans": plans, "ads": ads})
 
 
 # ----------------------------------------------------------- like / upvote ---
@@ -220,7 +236,7 @@ class ProductForm(serializers.ModelSerializer):
 def owner_dict(p, state):
     d = product_dict(p, state)
     d.update(status=p.status, admin_note=p.admin_note, scheduled_for=p.scheduled_for,
-             is_live=p.is_live, description=p.description)
+             is_live=p.is_live, description=p.description, screenshots=[{"id": s.id, "url": s.image.url} for s in p.screenshots.all()])
     return d
 
 
@@ -229,15 +245,20 @@ def owner_dict(p, state):
 def my_products(request):
     if request.method == "GET":
         state = user_state(request)
-        qs = Product.objects.filter(owner=request.user).select_related("category").order_by("-created_at")
-        return Response([owner_dict(p, state) for p in qs])
+        qs = (Product.objects.filter(owner=request.user).select_related("category")
+              .prefetch_related("screenshots").order_by("-created_at"))
+        if st := request.GET.get("status"):
+            qs = qs.filter(status=st)
+        return Response(paginate(request, qs, lambda p: owner_dict(p, state), size=8))
 
     s = ProductForm(data=request.data)
     s.is_valid(raise_exception=True)
+    files, _ = check_screenshots(request)
     premium = s.validated_data.get("premium", False)
     if premium and not services.consume_credit(request.user):
         return Response({"detail": "You have no premium launch credits left. Pick a plan on the Pricing page first."}, status=402)
     p = s.save(owner=request.user, is_premium=premium, status=Product.Status.PENDING)
+    store_screenshots(p, files, [])
     return Response(owner_dict(p, user_state(request)), status=201)
 
 
@@ -251,7 +272,9 @@ def my_product(request, pk):
         return Response({"detail": "Only launches that are in review or need info can be edited."}, status=400)
     s = ProductForm(p, data=request.data, partial=True)
     s.is_valid(raise_exception=True)
-    s.save(status=Product.Status.PENDING)  # back into the review queue
+    files, remove = check_screenshots(request, p)
+    s.save(status=Product.Status.PENDING)
+    store_screenshots(p, files, remove)
     return Response(owner_dict(p, user_state(request)))
 
 
@@ -271,13 +294,14 @@ def my_ads(request):
 def admin_queue(request):
     status = request.GET.get("status", "pending")
     counts = dict(Product.objects.values_list("status").annotate(n=Count("id")))
-    qs = Product.objects.filter(status=status).select_related("category", "owner").order_by("created_at")
-    out = []
-    for p in qs[:100]:
+    qs = (Product.objects.filter(status=status).select_related("category", "owner")
+          .prefetch_related("screenshots").order_by("created_at"))
+
+    def row(p):
         d = owner_dict(p, (set(), set()))
         d["owner"] = {"username": p.owner.username, "email": p.owner.email}
-        out.append(d)
-    return Response({"counts": counts, "items": out})
+        return d
+    return Response({"counts": counts, **paginate(request, qs, row, size=10)})
 
 
 @api_view(["POST"])
@@ -289,3 +313,36 @@ def admin_review(request, pk):
     except ValueError as e:
         return Response({"detail": str(e)}, status=400)
     return Response({"ok": True, "status": p.status})
+
+
+
+MAX_SHOTS = 3
+
+
+def _ids(request, key):
+    getter = getattr(request.data, "getlist", None)
+    return [int(x) for x in (getter(key) if getter else []) if str(x).isdigit()]
+
+
+def check_screenshots(request, product=None):
+    files, remove = request.FILES.getlist("screenshots"), _ids(request, "remove_screenshots")
+    keep = product.screenshots.exclude(id__in=remove).count() if product else 0
+    err = lambda m: serializers.ValidationError({"screenshots": [m]})
+    if keep + len(files) > MAX_SHOTS:
+        raise err(f"You can upload at most {MAX_SHOTS} screenshots.")
+    for f in files:
+        if f.size > 3 * 1024 * 1024:
+            raise err("Each screenshot must be under 3 MB.")
+        try:
+            Image.open(f).verify(); f.seek(0)
+        except Exception:
+            raise err(f"{f.name} is not a valid image.")
+    return files, remove
+
+
+def store_screenshots(product, files, remove):
+    if remove:
+        product.screenshots.filter(id__in=remove).delete()
+    start = product.screenshots.count()
+    for i, f in enumerate(files):
+        ProductScreenshot.objects.create(product=product, image=f, order=start + i)

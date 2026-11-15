@@ -103,6 +103,7 @@ class Plan(models.Model):
     slug = models.SlugField(unique=True)
     tagline = models.CharField(max_length=120, blank=True)
     price_inr = models.PositiveIntegerField(default=0)
+    price_usd = models.PositiveIntegerField(default=0)
     period_days = models.PositiveSmallIntegerField(default=30)
     premium_launches = models.PositiveSmallIntegerField(default=0, help_text="Premium-badge launches included per period.")
     features = models.JSONField(default=list)
@@ -178,9 +179,20 @@ class Payment(models.Model):
     kind = models.CharField(max_length=6, choices=Kind.choices)
     plan = models.ForeignKey(Plan, null=True, blank=True, on_delete=models.SET_NULL)
     ad_slot = models.ForeignKey(AdSlot, null=True, blank=True, on_delete=models.SET_NULL)
-    amount_inr = models.PositiveIntegerField()
+    amount = models.PositiveIntegerField()
+    currency = models.CharField(max_length=3, default="INR")
     razorpay_order_id = models.CharField(max_length=64, unique=True)
     razorpay_payment_id = models.CharField(max_length=64, blank=True)
     status = models.CharField(max_length=8, choices=Status.choices, default=Status.CREATED)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+
+
+
+class ProductScreenshot(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="screenshots")
+    image = models.ImageField(upload_to="screenshots/%Y/%m/")
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "id"]

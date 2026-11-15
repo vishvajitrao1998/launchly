@@ -3,7 +3,7 @@
 {% block title %}Launch a product · Launchly{% endblock %}
 {% block content %}
 <section class="page-head">
-  <h1 id="submitTitle">Launch your product</h1>
+  <h1 id="submitTitle">Launch Your Product</h1>
   <p class="muted">Tell us about it. We review every submission, usually within 48 hours.</p>
 </section>
 <div id="adminNote" class="callout warn" hidden></div>
@@ -15,6 +15,13 @@
   <label class="field"><span>Tagline <small id="tagCount">0/140</small></span><input name="tagline" maxlength="140" required placeholder="One line that makes people click"><em class="err"></em></label>
   <label class="field"><span>Description</span><textarea name="description" rows="6" required placeholder="What does it do, who is it for, why is it different?"></textarea><em class="err"></em></label>
   <div class="grid-2">
+    <fieldset class="field">
+      <span>Screenshots <small id="shotCount">0/3</small></span>
+      <div class="shots" id="shots"></div>
+      <input type="file" name="screenshots" accept="image/*" multiple hidden>
+      <div><button type="button" class="btn btn-ghost" id="addShot">Add screenshots (max 3, 3 MB each)</button></div>
+      <em class="err"></em>
+    </fieldset>
     <label class="field"><span>Website URL</span><input name="website_url" type="url" required placeholder="https://"><em class="err"></em></label>
     <label class="field"><span>Logo (max 2 MB)</span>
       <div class="file"><img id="logoPrev" alt="" hidden><input name="logo" type="file" accept="image/*"></div><em class="err"></em></label>

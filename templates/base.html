@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="https://www.imgbit.app/static/imagetools/images/ib.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- apply theme + sidebar state before first paint (no flash) -->
   <script>(function(){try{var d=document.documentElement,t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');d.dataset.theme=t;if(localStorage.getItem('sidebar')==='collapsed')d.classList.add('sb-collapsed')}catch(e){}})()</script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
@@ -36,6 +36,7 @@
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
 </defs></svg>
 
 <div class="backdrop" id="backdrop"></div>
@@ -49,14 +50,14 @@
   </div>
   <nav class="sb-nav">
     <a href="{% url 'home' %}" class="nav-link" data-nav="home" title="Discover"><svg class="i"><use href="#i-home"/></svg><span class="label">Discover</span></a>
-    <a href="{% url 'submit' %}" class="nav-link" data-nav="submit" title="Launch a product"><svg class="i"><use href="#i-rocket"/></svg><span class="label">Launch a product</span></a>
+    <a href="{% url 'submit' %}" class="nav-link" data-nav="submit" title="Launch a product"><svg class="i"><use href="#i-rocket"/></svg><span class="label">Launch a Product</span></a>
     <a href="{% url 'pricing' %}" class="nav-link" data-nav="pricing" title="Pricing"><svg class="i"><use href="#i-tag"/></svg><span class="label">Pricing</span></a>
     <a href="{% url 'advertise' %}" class="nav-link" data-nav="advertise" title="Advertise"><svg class="i"><use href="#i-mega"/></svg><span class="label">Advertise</span></a>
     {% if user.is_authenticated %}
-    <a href="{% url 'dashboard' %}" class="nav-link" data-nav="dashboard" title="My dashboard"><svg class="i"><use href="#i-grid"/></svg><span class="label">My dashboard</span></a>
+    <a href="{% url 'dashboard' %}" class="nav-link" data-nav="dashboard" title="My Dashboard"><svg class="i"><use href="#i-grid"/></svg><span class="label">My Dashboard</span></a>
     {% endif %}
     {% if user.is_staff %}
-    <a href="{% url 'review' %}" class="nav-link" data-nav="review" title="Review queue"><svg class="i"><use href="#i-shield"/></svg><span class="label">Review queue</span></a>
+    <a href="{% url 'review' %}" class="nav-link" data-nav="review" title="Review queue"><svg class="i"><use href="#i-shield"/></svg><span class="label">Review Queue</span></a>
     {% endif %}
   </nav>
   <div class="sb-foot">
@@ -79,6 +80,7 @@
       <input name="q" type="search" placeholder="Search products…" autocomplete="off" aria-label="Search products">
     </form>
     <div class="top-actions">
+      <select id="currencySelect" data-size="sm" aria-label="Currency"><option value="INR">₹ INR</option><option value="USD">$ USD</option></select>
       <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
         <svg class="i sun"><use href="#i-sun"/></svg><svg class="i moon"><use href="#i-moon"/></svg>
       </button>

@@ -111,5 +111,28 @@ RAZORPAY_KEY_SECRET = env("RAZORPAY_KEY_SECRET")
 RAZORPAY_WEBHOOK_SECRET = env("RAZORPAY_WEBHOOK_SECRET")
 
 # Advertisement slot price PER WEEK in INR (separate from subscription plans)
-AD_PRICING_INR = {"hero": 4999, "spotlight": 2499, "cat_first": 1999, "cat_third": 1299}
+AD_PRICING = {  # per week
+    "hero":      {"INR": 4999, "USD": 59},
+    "spotlight": {"INR": 2499, "USD": 29},
+    "cat_first": {"INR": 1999, "USD": 24},
+    "cat_third": {"INR": 1299, "USD": 15},
+}
 AD_HOLD_MINUTES = 15  # an unpaid booking blocks the slot this long
+
+
+
+if env("USE_R2", "0") == "1":
+    STORAGES = {
+        "default": {"BACKEND": "storages.backends.s3.S3Storage", "OPTIONS": {
+            "bucket_name": env("R2_BUCKET"),
+            "endpoint_url": f"https://{env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com",
+            "access_key": env("R2_ACCESS_KEY_ID"),
+            "secret_key": env("R2_SECRET_ACCESS_KEY"),
+            "region_name": "auto",
+            "signature_version": "s3v4",
+            "custom_domain": env("R2_PUBLIC_DOMAIN"),   # e.g. pub-xxxx.r2.dev or cdn.yourdomain.com
+            "querystring_auth": False,
+            "file_overwrite": False,
+        }},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }

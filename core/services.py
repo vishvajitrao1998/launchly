@@ -18,8 +18,20 @@ SLOT_INFO = {
 ORDINAL = {1: "1st", 3: "3rd"}
 
 
-def slot_price(slot_type):
-    return settings.AD_PRICING_INR[slot_type]
+CURRENCIES = ("INR", "USD")
+
+
+def get_currency(request):
+    c = request.COOKIES.get("currency", "INR").upper()
+    return c if c in CURRENCIES else "INR"
+
+
+def slot_price(slot_type, currency="INR"):
+    return settings.AD_PRICING[slot_type][currency]
+
+
+def plan_price(plan, currency="INR"):
+    return plan.price_usd if currency == "USD" else plan.price_inr
 
 
 def slot_label(slot_type, category=None, position=1):

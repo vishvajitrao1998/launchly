@@ -1,6 +1,6 @@
 /* Page controllers. Every page is a static template; these fill it from /api/. */
 (() => {
-  const { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, rupee, fmtDate, skel, logoHtml, premiumBadge } = window.L;
+  const { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, money, rupee, fmtDate, skel, logoHtml, premiumBadge, pager } = window.L;
   const $ = window.$, $$ = window.$$;
   const pages = {};
   const localDate = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
@@ -30,12 +30,25 @@
     let active = '';
     $('#cats').innerHTML = `<button class="chip on" data-cat="">✨ All</button>` + cats.map(c =>
       `<button class="chip" data-cat="${esc(c.slug)}" style="--c:${esc(c.color)}">${esc(c.icon)} ${esc(c.name)} <small>${c.count}</small></button>`).join('');
+    let page = 1, seen = new Set();
     const drawFeed = () => {
       const list = feed.sections.filter(s => !active || s.category.slug === active);
-      $('#feed').innerHTML = list.length ? list.map(s => `
+      const total = cats.find(c => c.slug === active)?.count || 0;
+      $('#feed').innerHTML = (list.length ? list.map(s => `
         <section class="cat-section"><div class="cat-title" style="--c:${esc(s.category.color)}"><span class="cat-ico">${esc(s.category.icon)}</span><h2>${esc(s.category.name)}</h2></div>
         <div class="app-grid">${s.items.map((p, i) => appCard(p, i)).join('')}</div></section>`).join('')
-        : '<div class="empty">No launches in this category yet. Be the first!</div>';
+        : '<div class="empty">No launches in this category yet. Be the first!</div>')
+        + (active && total > 10 ? '<div class="more"><button class="btn btn-ghost" id="moreBtn">Load more</button></div>' : '');
+      if (active && total > 10) {
+        page = 1; seen = new Set(list.flatMap(s => s.items.filter(p => p.id).map(p => p.id)));
+        $('#moreBtn').onclick = async () => {
+          const b = $('#moreBtn'); b.disabled = true;
+          const r = await api(`/api/products/?category=${encodeURIComponent(active)}&page_size=10&page=${++page}`);
+          const fresh = r.results.filter(p => !seen.has(p.id)); fresh.forEach(p => seen.add(p.id));
+          $('#feed .app-grid').insertAdjacentHTML('beforeend', fresh.map((p, i) => appCard(p, i)).join(''));
+          b.disabled = false; if (page >= r.pages) b.hidden = true;
+        };
+      }
     };
     $('#cats').addEventListener('click', e => {
       const b = e.target.closest('[data-cat]'); if (!b) return;
@@ -52,11 +65,16 @@
 
     // search results replace the feed
     if (q) {
-      const res = await api('/api/products/?q=' + encodeURIComponent(q));
       $('#feed').hidden = true; $('#latestWrap').hidden = true;
       const box = $('#searchResults'); box.hidden = false;
-      box.innerHTML = `<section class="block"><div class="block-head"><h2>Results for “${esc(q)}”</h2></div><div class="app-grid">${res.length ? res.map((p, i) => appCard(p, i)).join('') : '<div class="empty">Nothing found.</div>'}</div></section>`;
-      box.scrollIntoView({ behavior: 'smooth' });
+      box.innerHTML = `<section class="block"><div class="block-head"><h2>Results for “${esc(q)}”</h2></div><div id="resGrid" class="app-grid"></div><div id="resPager"></div></section>`;
+      const load = async n => {
+        const r = await api(`/api/products/?q=${encodeURIComponent(q)}&page=${n}`);
+        $('#resGrid').innerHTML = r.results.length ? r.results.map((p, i) => appCard(p, i)).join('') : '<div class="empty">Nothing found.</div>';
+        pager($('#resPager'), r, load);
+        box.scrollIntoView({ behavior: 'smooth' });
+      };
+      load(1);
     }
   };
 
@@ -98,23 +116,20 @@
   /* ======================= ADVERTISE ======================= */
   pages.advertise = async () => {
     const [board, me] = await Promise.all([api('/api/ads/board/'), api('/api/me/')]);
-    renderBoard($('#board'), board);
+    renderBoard($('#board'), board, { home: true });
     const body = $('#bookBody');
     if (!me.authenticated) {
       body.innerHTML = '<p class="muted" style="margin-bottom:14px">Log in to book a slot.</p><a class="btn btn-primary" href="/login/?next=/advertise/">Log in</a>';
       return;
     }
-    const prods = (await api('/api/me/products/')).filter(p => p.status === 'approved');
+    const prods = (await api('/api/me/products/?status=approved&page_size=50')).results;
     if (!prods.length) {
       body.innerHTML = '<p class="muted" style="margin-bottom:14px">You need an approved product before you can advertise it.</p><a class="btn btn-primary" href="/submit/">Launch a product</a>';
       return;
     }
-    let opts = '', g = '';
-    board.rows.forEach(r => {
-      if (r.group !== g) { if (g) opts += '</optgroup>'; g = r.group; opts += `<optgroup label="${esc(g)}">`; }
-      opts += `<option value="${esc(r.key)}">${esc(r.label)} · ${rupee(r.price)}/wk</option>`;
-    });
-    opts += '</optgroup>';
+    const opt = r => `<option value="${esc(r.key)}">${esc(r.category ? r.group + ' · ' + r.label : r.label)} · ${money(r.price)}/wk</option>`;
+    const opts = `<optgroup label="Category slots">${board.rows.filter(r => r.category).map(opt).join('')}</optgroup>`
+           + `<optgroup label="Home page">${board.rows.filter(r => !r.category).map(opt).join('')}</optgroup>`;
     body.innerHTML = `
       <div style="display:grid;gap:16px">
         <label class="field"><span>Slot</span><select id="bSlot">${opts}</select></label>
@@ -157,7 +172,7 @@
           start_date: $('#bStart').value, weeks: $('#bWeeks').value } });
         await pay(checkout);
         toast('Slot booked! Your ad is scheduled 🎉');
-        renderBoard($('#board'), await api('/api/ads/board/'));
+        renderBoard($('#board'), await api('/api/ads/board/'), {home:true});
       } catch (e) { err.textContent = e.message; err.classList.add('show'); }
       btn.disabled = false;
     };
@@ -196,11 +211,37 @@
     if (me.credits > 0) $('#premiumNote').textContent = `You have ${me.credits} Premium credit${me.credits > 1 ? 's' : ''}. Uses one on submit.`;
     else { $('#premiumNote').innerHTML = 'No credits yet. <a class="link" href="/pricing/">Get a plan</a> to unlock Premium launches.'; form.premium.disabled = true; }
 
+    const MAX = 3; let kept = [], added = [], removed = [];
+    const drawShots = () => {
+      $('#shotCount').textContent = `${kept.length + added.length}/${MAX}`;
+      $('#shots').innerHTML =
+        kept.map(s => `<div class="shot"><img src="${esc(s.url)}" alt=""><button type="button" data-rm-kept="${s.id}" aria-label="Remove">×</button></div>`).join('') +
+        added.map((f, i) => `<div class="shot"><img src="${URL.createObjectURL(f)}" alt=""><button type="button" data-rm-new="${i}" aria-label="Remove">×</button></div>`).join('');
+      $('#addShot').hidden = kept.length + added.length >= MAX;
+    };
+    $('#addShot').onclick = () => form.screenshots.click();
+    form.screenshots.addEventListener('change', () => {
+      for (const f of form.screenshots.files) {
+        if (kept.length + added.length >= MAX) { toast('Maximum 3 screenshots', 'bad'); break; }
+        if (f.size > 3 * 1024 * 1024) { toast(`${f.name} is over 3 MB`, 'bad'); continue; }
+        added.push(f);
+      }
+      form.screenshots.value = ''; drawShots();
+    });
+    $('#shots').addEventListener('click', e => {
+      const k = e.target.closest('[data-rm-kept]'), n = e.target.closest('[data-rm-new]');
+      if (k) { removed.push(+k.dataset.rmKept); kept = kept.filter(s => s.id !== +k.dataset.rmKept); }
+      if (n) added.splice(+n.dataset.rmNew, 1);
+      drawShots();
+    });
+    drawShots();
+
     if (editId) {
-      $('#submitTitle').textContent = 'Update your launch';
-      $('#submitBtn').textContent = 'Resubmit for review';
+      $('#submitTitle').textContent = 'Update Your Launch';
+      $('#submitBtn').textContent = 'Resubmit for Review';
       $('#premiumOpt').hidden = true;
       const p = await api(`/api/me/products/${editId}/`);
+      kept = p.screenshots; drawShots();
       ['name', 'tagline', 'description', 'website_url'].forEach(k => (form.elements[k].value = p[k]));
       form.category.value = p.category.slug; count();
       if (p.scheduled_for) {
@@ -214,6 +255,7 @@
       e.preventDefault();
       const fd = new FormData(form);
       if (!form.logo.files[0]) fd.delete('logo');
+      fd.delete('screenshots'); added.forEach(f => fd.append('screenshots', f)); removed.forEach(id => fd.append('remove_screenshots', id));
       if (form.launch_mode.value === 'schedule' && form.scheduled_for.value) fd.set('scheduled_for', new Date(form.scheduled_for.value).toISOString());
       else fd.delete('scheduled_for');
       fd.set('premium', form.premium.checked ? 'true' : 'false');
@@ -230,25 +272,32 @@
   const stLabel = { pending: 'In review', needs_info: 'Needs info', approved: 'Live', rejected: 'Rejected', scheduled: 'Scheduled', active: 'Active', cancelled: 'Cancelled' };
   const stBadge = k => `<span class="badge badge-status st-${k}">${stLabel[k] || k}</span>`;
 
-  pages.dashboard = async () => {
+    pages.dashboard = async () => {
     $('#myProducts').innerHTML = skel(3, 100);
-    const [prods, ads, me] = await Promise.all([api('/api/me/products/'), api('/api/me/ads/'), api('/api/me/')]);
+    const [ads, me] = await Promise.all([api('/api/me/ads/'), api('/api/me/')]);
     $('#dashSub').textContent = `Premium credits: ${me.credits}`;
-    $('#myProducts').innerHTML = prods.length ? prods.map((p, i) => {
-      const st = p.status === 'approved' && !p.is_live ? 'scheduled' : p.status === 'approved' ? 'approved' : p.status;
-      const when = st === 'scheduled' ? `Goes live ${fmtDate(p.launch_at, true)}` : p.scheduled_for && p.status !== 'approved' ? `Requested for ${fmtDate(p.scheduled_for, true)}` : '';
-      return `<article class="row-card" style="--i:${i}">
-        <div class="logo" style="--c:${esc(p.category.color)}">${logoHtml(p)}</div>
-        <div class="grow">
-          <div class="title-row"><b>${esc(p.name)}</b>${stBadge(st)}${p.is_premium ? premiumBadge : ''}</div>
-          <div class="meta-line"><span>${esc(p.category.icon)} ${esc(p.category.name)}</span>${when ? `<span><svg class="i" style="width:14px;height:14px"><use href="#i-clock"/></svg> ${when}</span>` : ''}<span>▲ ${p.upvotes}</span><span>♥ ${p.likes}</span></div>
-          ${p.admin_note ? `<div class="note"><b>Message from our team:</b> ${esc(p.admin_note)}</div>` : ''}
-          <div class="row-actions">
-            ${p.is_live ? `<a class="btn btn-sm" href="/product/${esc(p.slug)}/">View</a><a class="btn btn-sm btn-ghost" href="/advertise/">Advertise</a>` : ''}
-            ${['pending', 'needs_info'].includes(p.status) ? `<a class="btn btn-sm ${p.status === 'needs_info' ? 'btn-primary' : ''}" href="/submit/?edit=${p.id}">${p.status === 'needs_info' ? 'Fix & resubmit' : 'Edit'}</a>` : ''}
-          </div>
-        </div></article>`;
-    }).join('') : '<div class="empty">No launches yet. <a class="link" href="/submit/">Launch your first product</a></div>';
+
+    const drawProducts = async n => {
+      const d = await api(`/api/me/products/?page=${n}`);
+      $('#myProducts').innerHTML = d.results.length ? d.results.map((p, i) => {
+        const st = p.status === 'approved' && !p.is_live ? 'scheduled' : p.status === 'approved' ? 'approved' : p.status;
+        const when = st === 'scheduled' ? `Goes live ${fmtDate(p.launch_at, true)}` : p.scheduled_for && p.status !== 'approved' ? `Requested for ${fmtDate(p.scheduled_for, true)}` : '';
+        return `<article class="row-card" style="--i:${i}">
+          <div class="logo" style="--c:${esc(p.category.color)}">${logoHtml(p)}</div>
+          <div class="grow">
+            <div class="title-row"><b>${esc(p.name)}</b>${stBadge(st)}${p.is_premium ? premiumBadge : ''}</div>
+            <div class="meta-line"><span>${esc(p.category.icon)} ${esc(p.category.name)}</span>${when ? `<span><svg class="i" style="width:14px;height:14px"><use href="#i-clock"/></svg> ${when}</span>` : ''}<span>▲ ${p.upvotes}</span><span>♥ ${p.likes}</span></div>
+            ${p.admin_note ? `<div class="note"><b>Message from our team:</b> ${esc(p.admin_note)}</div>` : ''}
+            <div class="row-actions">
+              ${p.is_live ? `<a class="btn btn-sm" href="/product/${esc(p.slug)}/">View</a><a class="btn btn-sm btn-ghost" href="/advertise/">Advertise</a>` : ''}
+              ${['pending', 'needs_info'].includes(p.status) ? `<a class="btn btn-sm ${p.status === 'needs_info' ? 'btn-primary' : ''}" href="/submit/?edit=${p.id}">${p.status === 'needs_info' ? 'Fix & resubmit' : 'Edit'}</a>` : ''}
+            </div>
+          </div></article>`;
+      }).join('') : '<div class="empty">No launches yet. <a class="link" href="/submit/">Launch your first product</a></div>';
+      pager($('#prodPager'), d, drawProducts);
+    };
+    await drawProducts(1);
+
     $('#myAds').innerHTML = ads.length ? ads.map((a, i) => `<article class="row-card" style="--i:${i}"><div class="grow"><div class="title-row"><b>${esc(a.product)}</b>${stBadge(a.status)}</div>
       <div class="meta-line"><span>${esc(a.group)} · ${esc(a.label)}</span><span>${fmtDate(a.starts_on)} – ${fmtDate(a.ends_on)}</span></div></div></article>`).join('')
       : '<div class="empty">No ad bookings yet.</div>';
@@ -256,7 +305,7 @@
 
   /* ======================= REVIEW (staff) ======================= */
   pages.review = async () => {
-    let status = 'pending';
+    let status = 'pending',page = 1;
     const names = { pending: 'Pending', needs_info: 'Needs info', approved: 'Approved', rejected: 'Rejected' };
     const templates = {
       request_info: name => `Thanks for submitting ${name}! Before we can approve it, we need:\n\n- `,
@@ -267,9 +316,9 @@
 
     async function load() {
       $('#queue').innerHTML = skel(3, 110);
-      const d = await api(`/api/admin/queue/?status=${status}`);
+      const d = await api(`/api/admin/queue/?status=${status}&page=${page}`);
       $('#tabs').innerHTML = Object.entries(names).map(([k, v]) => `<button class="tab ${k === status ? 'on' : ''}" data-tab="${k}">${v}<b>${d.counts[k] || 0}</b></button>`).join('');
-      $('#queue').innerHTML = d.items.length ? d.items.map((p, i) => `
+      $('#queue').innerHTML = d.results.length ? d.results.map((p, i) => `
         <article class="row-card" style="--i:${i}" data-id="${p.id}" data-name="${esc(p.name)}">
           <div class="logo" style="--c:${esc(p.category.color)}">${logoHtml(p)}</div>
           <div class="grow">
@@ -284,9 +333,10 @@
               <button class="btn btn-sm btn-ghost" data-review="email">Email maker</button>
             </div>
           </div></article>`).join('') : '<div class="empty">Nothing here 🎉</div>';
+          pager($('#qPager'), d, n => { page = n; load(); });
     }
 
-    $('#tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { status = t.dataset.tab; load(); } });
+    $('#tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { status = t.dataset.tab; page = 1; load(); } });
     $('#queue').addEventListener('click', e => {
       const b = e.target.closest('[data-review]'); if (!b) return;
       const card = b.closest('.row-card'), id = card.dataset.id, action = b.dataset.review;
@@ -327,9 +377,11 @@
         </div>
         <div class="meta-line"><span class="chip sm">${esc(p.category.icon)} ${esc(p.category.name)}</span>${p.launch_at ? `<span>Launched ${fmtDate(p.launch_at, true)}</span>` : ''}<span>by @${esc(p.maker)}</span></div>
         <div class="pd-desc">${esc(p.description)}</div>
+        ${p.screenshots.length ? `<div class="gallery">${p.screenshots.map(u => `<button class="gal" data-shot="${esc(u)}"><img loading="lazy" src="${esc(u)}" alt="${esc(p.name)} screenshot"></button>`).join('')}</div>` : ''}
       </article>`;
+      el.addEventListener('click', e => { const g = e.target.closest('[data-shot]'); if (g) modal(`<img class="lightbox" src="${esc(g.dataset.shot)}" alt=""><div class="row-actions"><button class="btn" data-close>Close</button></div>`); });
   };
 
   const run = pages[document.body.dataset.page];
-  if (run) run().catch(e => e.message !== 'Please log in' && toast(e.message, 'bad'));
+if (run) run().catch(e => e.message !== 'Please log in' && toast(e.message, 'bad')).finally(() => window.L.enhanceSelects());
 })();
