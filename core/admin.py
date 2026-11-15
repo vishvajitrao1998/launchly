@@ -1,8 +1,10 @@
 from django.contrib import admin, messages
 
 from . import services
-from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote, ProductScreenshot
+from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote, ProductScreenshot, Profile
 
+
+admin.site.register(Profile)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):

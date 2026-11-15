@@ -1,6 +1,6 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
-
+from django.views.generic import TemplateView
 from . import api, payments, views
 
 urlpatterns = [
@@ -18,6 +18,14 @@ urlpatterns = [
     path("top/", views.top_page, name="top"),
     path("products/", views.category_page, name="products"),
     path("category/<slug:slug>/", views.category_page, name="category"),
+
+    # pages
+    path("settings/", views.settings_page, name="account"),
+    path("p/about/", TemplateView.as_view(template_name="pages/about.html"), name="about"),
+    path("p/contact/", TemplateView.as_view(template_name="pages/contact.html"), name="contact"),
+    path("p/privacy/", TemplateView.as_view(template_name="pages/privacy.html"), name="privacy"),
+    path("p/disclaimer/", TemplateView.as_view(template_name="pages/disclaimer.html"), name="disclaimer"),
+    path("p/guide/", TemplateView.as_view(template_name="pages/guide.html"), name="guide"),
 
     # public API
     path("api/me/", api.me),
@@ -46,4 +54,7 @@ urlpatterns = [
     path("api/payments/ad/", payments.book_ad),
     path("api/payments/verify/", payments.verify),
     path("razorpay/webhook/", payments.webhook),
+
+    path("api/me/profile/", api.my_profile),
+    path("api/me/password/", api.change_password),
 ]

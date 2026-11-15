@@ -44,7 +44,7 @@ Open http://127.0.0.1:8000 · Django admin at `/admin/` · staff review queue at
 | Pricing + Razorpay | `/pricing/` plans (DB-driven) and ad-slot prices (per week, `AD_PRICING_INR` in settings). Flow: create order → Razorpay Checkout → signature verify (`/api/payments/verify/`) → webhook as safety net |
 | Different price for ad slots | Plans = monthly subscription with Premium credits. Ad slots = per-week price by slot type |
 | Like & upvote | Toggle endpoints with unique constraints and denormalised counters |
-| Submit a product | `/submit/` with name, tagline, description, URL, logo, category, schedule, premium |
+| Submit a product | `/launch-product/` with name, tagline, description, URL, logo, category, schedule, premium |
 | Premium badge | `Product.is_premium`; consuming a plan credit on submit; gold shimmering badge and gold card border; credit refunded if rejected |
 | Font / colours | Plus Jakarta Sans; indigo→violet brand on cool slate; gold reserved for Premium |
 

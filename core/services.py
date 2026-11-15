@@ -12,6 +12,7 @@ from .models import AdSlot, Category, Payment, Product, Subscription
 SLOT_INFO = {
     "hero": ("Hero banner", "The big banner at the very top of Home. One advertiser at a time."),
     "spotlight": ("Sponsored spotlight", "Three featured tiles right under the hero, shown to every visitor."),
+    "sidebar": ("Right sidebar", "Two sponsored tiles in the right rail on Home and the Leaderboard."),
     "cat_first": ("Category · 1st position", "Pinned to the first spot of a category list, no matter how many apps it has."),
     "cat_third": ("Category · 3rd position", "Pinned to the third spot of a category list, no matter how many apps it has."),
 }
@@ -182,3 +183,19 @@ def period_range(kind, offset=0):
         label = "This month" if offset == 0 else "Last month" if offset == 1 else f"{s:%B}"
         sub = f"{s:%B %Y}"
     return _aware(s), _aware(e), label, sub
+
+
+
+def display_name(user):
+    """Public name: display name if set, else username."""
+    profile = getattr(user, "profile", None)
+    return (profile.display_name if profile and profile.display_name else user.username)
+
+
+def mask_email(email):
+    """hello.world@gmail.com -> hello***@gmail.com"""
+    if not email or "@" not in email:
+        return ""
+    local, domain = email.rsplit("@", 1)
+    keep = min(5, max(1, len(local) - 3))
+    return f"{local[:keep]}***@{domain}"

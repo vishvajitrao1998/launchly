@@ -48,7 +48,7 @@
         <div class="block-head"><h2>${esc(t.title)}</h2><a class="link" href="/top/?kind=${t.kind}&offset=${t.offset}">See all</a></div>
         ${t.items.length
           ? `<div class="rank-list">${t.items.map((p, i) => rankItem(p, i + 1, i)).join('')}</div>`
-          : '<div class="empty sm">No launches in this period yet. <a class="link" href="/submit/">Launch Yours</a></div>'}
+          : '<div class="empty sm">No launches in this period yet. <a class="link" href="/launch-product/">Launch Yours</a></div>'}
       </section>`).join('');
 
     // categories + feed (with load more when one category is selected)
@@ -153,7 +153,7 @@
       $('#catSub').textContent = `${d.total} product${d.total === 1 ? '' : 's'}`;
       $('#catList').innerHTML = d.results.length
         ? d.results.map((p, i) => sort === 'top' ? rankItem(p, d.start + i, i) : appCard(p, i)).join('')
-        : '<div class="empty">No products here yet. <a class="link" href="/submit/">Launch the first one</a></div>';
+        : '<div class="empty">No products here yet. <a class="link" href="/launch-product/">Launch the first one</a></div>';
       pager($('#catPager'), d, n => { page = n; load(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     }
     $('#sortTabs').addEventListener('click', e => {
@@ -185,7 +185,7 @@
 
     $('#plans').addEventListener('click', async e => {
       const b = e.target.closest('[data-plan]'); if (!b) return;
-      if (!+b.dataset.price) return (location.href = '/submit/');
+      if (!+b.dataset.price) return (location.href = '/launch-product/');
       if (!me.authenticated) return (location.href = '/login/?next=/pricing/');
       b.disabled = true;
       try {
@@ -209,7 +209,7 @@
     }
     const prods = (await api('/api/me/products/?status=approved&page_size=50')).results;
     if (!prods.length) {
-      body.innerHTML = '<p class="muted" style="margin-bottom:14px">You need an approved product before you can advertise it.</p><a class="btn btn-primary" href="/submit/">Launch a product</a>';
+      body.innerHTML = '<p class="muted" style="margin-bottom:14px">You need an approved product before you can advertise it.</p><a class="btn btn-primary" href="/launch-product/">Launch a product</a>';
       return;
     }
     const opt = r => `<option value="${esc(r.key)}">${esc(r.category ? r.group + ' · ' + r.label : r.label)} · ${money(r.price)}/wk</option>`;
@@ -275,7 +275,7 @@
       f.classList.add('invalid');
       const el = f.querySelector('.err'); el.textContent = [].concat(v).join(' '); el.classList.add('show'); shown = true;
     }
-    if (!shown) { const el = $('#formErr'); el.textContent = err.message; el.classList.add('show'); }
+    if (!shown) { const el = $('.form-err', form) || $('#formErr'); el.textContent = err.message; el.classList.add('show'); }
   }
 
   pages.submit = async () => {
@@ -375,10 +375,10 @@
             ${p.admin_note ? `<div class="note"><b>Message from our team:</b> ${esc(p.admin_note)}</div>` : ''}
             <div class="row-actions">
               ${p.is_live ? `<a class="btn btn-sm" href="/product/${esc(p.slug)}/">View</a><a class="btn btn-sm btn-ghost" href="/advertise/">Advertise</a>` : ''}
-              ${['pending', 'needs_info'].includes(p.status) ? `<a class="btn btn-sm ${p.status === 'needs_info' ? 'btn-primary' : ''}" href="/submit/?edit=${p.id}">${p.status === 'needs_info' ? 'Fix & resubmit' : 'Edit'}</a>` : ''}
+              ${['pending', 'needs_info'].includes(p.status) ? `<a class="btn btn-sm ${p.status === 'needs_info' ? 'btn-primary' : ''}" href="/launch-product/?edit=${p.id}">${p.status === 'needs_info' ? 'Fix & resubmit' : 'Edit'}</a>` : ''}
             </div>
           </div></article>`;
-      }).join('') : '<div class="empty">No launches yet. <a class="link" href="/submit/">Launch your first product</a></div>';
+      }).join('') : '<div class="empty">No launches yet. <a class="link" href="/launch-product/">Launch your first product</a></div>';
       pager($('#prodPager'), d, drawProducts);
     };
     await drawProducts(1);
@@ -460,11 +460,46 @@
           <div><div class="title-row"><h1 style="font-size:2rem">${esc(p.name)}</h1>${p.is_premium ? premiumBadge : ''}</div><p class="muted">${esc(p.tagline)}</p></div>
           <div class="pd-actions"><a class="btn" href="${esc(p.website_url)}" target="_blank" rel="noopener">Visit website</a>${p.is_live ? voteButtons(p) : ''}</div>
         </div>
-        <div class="meta-line"><span class="chip sm">${esc(p.category.icon)} ${esc(p.category.name)}</span>${p.launch_at ? `<span>Launched ${fmtDate(p.launch_at, true)}</span>` : ''}<span>by @${esc(p.maker)}</span></div>
+        <div class="meta-line"><span class="chip sm">${esc(p.category.icon)} ${esc(p.category.name)}</span>${p.launch_at ? `<span>Launched ${fmtDate(p.launch_at, true)}</span>` : ''}<span>by ${esc(p.maker)}</span></div>
         <div class="pd-desc">${esc(p.description)}</div>
         ${p.screenshots.length ? `<div class="gallery">${p.screenshots.map(u => `<button class="gal" data-shot="${esc(u)}"><img loading="lazy" src="${esc(u)}" alt="${esc(p.name)} screenshot"></button>`).join('')}</div>` : ''}
       </article>`;
       el.addEventListener('click', e => { const g = e.target.closest('[data-shot]'); if (g) modal(`<img class="lightbox" src="${esc(g.dataset.shot)}" alt=""><div class="row-actions"><button class="btn" data-close>Close</button></div>`); });
+  };
+
+    /* ======================= SETTINGS ======================= */
+  pages.settings = async () => {
+    const pf = $('#profileForm'), pw = $('#passwordForm');
+    const p = await api('/api/me/profile/');
+    ['username', 'email', 'first_name', 'last_name', 'display_name'].forEach(k => (pf.elements[k].value = p[k] || ''));
+
+    pf.addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = $('button[type=submit]', pf); btn.disabled = true;
+      try {
+        const out = await api('/api/me/profile/', { method: 'PATCH', body: {
+          first_name: pf.elements.first_name.value, last_name: pf.elements.last_name.value, display_name: pf.elements.display_name.value } });
+        showErrors(pf, { data: {}, message: '' }); $('.form-err', pf).classList.remove('show');
+        const name = out.display_name || out.username;
+        $$('.me .me-name').forEach(el => (el.textContent = name));
+        $$('.me .avatar').forEach(el => (el.textContent = name.charAt(0).toUpperCase()));
+        toast('Profile Updated');
+      } catch (err) { showErrors(pf, err); }
+      btn.disabled = false;
+    });
+
+    pw.addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = $('button[type=submit]', pw); btn.disabled = true;
+      try {
+        await api('/api/me/password/', { method: 'POST', body: {
+          current_password: pw.elements.current_password.value, new_password: pw.elements.new_password.value,
+          confirm_password: pw.elements.confirm_password.value } });
+        pw.reset(); showErrors(pw, { data: {}, message: '' }); $('.form-err', pw).classList.remove('show');
+        toast('Password Updated');
+      } catch (err) { showErrors(pw, err); }
+      btn.disabled = false;
+    });
   };
 
   const run = pages[document.body.dataset.page];

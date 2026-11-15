@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block page %}settings{% endblock %}
+{% block title %}Settings · Launchly{% endblock %}
+{% block content %}
+<div class="narrow">
+  <section class="page-head center"><h1>Settings</h1><p class="muted">Manage your profile and password.</p></section>
+
+  <form id="profileForm" class="card form-card" novalidate>
+    <h3>Profile</h3>
+    <div class="grid-2">
+      <label class="field"><span>Username</span><input name="username" readonly></label>
+      <label class="field"><span>Email</span><input name="email" readonly></label>
+    </div>
+    <div class="grid-2">
+      <label class="field"><span>First name</span><input name="first_name" maxlength="150" autocomplete="given-name"><em class="err"></em></label>
+      <label class="field"><span>Last name</span><input name="last_name" maxlength="150" autocomplete="family-name"><em class="err"></em></label>
+    </div>
+    <label class="field"><span>Display name <small>shown on your products</small></span>
+      <input name="display_name" maxlength="40" placeholder="How should we show your name?"><em class="err"></em></label>
+    <div class="form-foot"><em class="err form-err"></em><button class="btn btn-primary" type="submit">Save changes</button></div>
+  </form>
+
+  <form id="passwordForm" class="card form-card" style="margin-top:22px" novalidate>
+    <h3>Change password</h3>
+    <label class="field"><span>Current password</span><input type="password" name="current_password" autocomplete="current-password"><em class="err"></em></label>
+    <div class="grid-2">
+      <label class="field"><span>New password</span><input type="password" name="new_password" autocomplete="new-password"><em class="err"></em></label>
+      <label class="field"><span>Confirm new password</span><input type="password" name="confirm_password" autocomplete="new-password"><em class="err"></em></label>
+    </div>
+    <div class="form-foot"><em class="err form-err"></em><button class="btn btn-primary" type="submit">Update password</button></div>
+  </form>
+</div>
+{% endblock %}

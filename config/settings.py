@@ -50,6 +50,7 @@ TEMPLATES = [{
         "django.template.context_processors.request",
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
+        "core.context.site",
     ]},
 }]
 
@@ -137,3 +138,6 @@ if env("USE_R2", "0") == "1":
         }},
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
+
+
+CONTACT_EMAIL = env("CONTACT_EMAIL", "support@launchly.local")

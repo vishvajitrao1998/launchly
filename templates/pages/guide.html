@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block page %}guide{% endblock %}
+{% block title %}Launch guide · Launchly{% endblock %}
+{% block content %}
+<article class="doc">
+  <h1>Launch Guide</h1>
+  <p>A short checklist to get the most out of your launch.</p>
+  <h2>Before you submit</h2>
+  <ol>
+    <li><b>Write a sharp tagline.</b> One line (max 140 characters) that says what it does and for whom.</li>
+    <li><b>Prepare visuals.</b> A square logo (under 2 MB) and up to 3 screenshots (under 3 MB each) that show the product in use.</li>
+    <li><b>Explain the “why”.</b> In the description, cover the problem, who it helps and what makes it different.</li>
+    <li><b>Check your link.</b> Make sure your website works on mobile and a visitor can try the product quickly.</li>
+  </ol>
+  <h2>Choose when to launch</h2>
+  <p>Launch as soon as you are approved, or schedule a date and time. Many makers pick a weekday morning when more people are online.</p>
+  <h2>Review</h2>
+  <p>We review every submission, usually within 48 hours. If something is missing we email you and show a note on your <a class="link" href="{% url 'dashboard' %}">dashboard</a>. Fix it and resubmit.</p>
+  <h2>Go further</h2>
+  <ul>
+    <li><b>Premium launch:</b> a gold badge and priority review. See <a class="link" href="{% url 'pricing' %}">Pricing</a>.</li>
+    <li><b>Advertising:</b> pin your product to a category's 1st or 3rd position, the spotlight, or the right sidebar. See <a class="link" href="{% url 'advertise' %}">Advertise</a>.</li>
+  </ul>
+  <h2>On launch day</h2>
+  <p>Share your page with your audience, reply to every comment and thank people who upvote. The most upvoted products rise to the top of the day, week and month.</p>
+  <p><a class="btn btn-primary" href="{% url 'submit' %}">Launch Your Product</a></p>
+</article>
+{% endblock %}

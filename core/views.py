@@ -49,3 +49,8 @@ def signup(request):
         login(request, form.save())
         return redirect(request.GET.get("next") or "dashboard")
     return render(request, "registration/signup.html", {"form": form})
+
+
+@login_required
+def settings_page(request):
+    return render(request, "settings.html")

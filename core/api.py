@@ -12,8 +12,13 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from PIL import Image
 from . import services
-from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot
+from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot, Profile
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+
+
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 def paginate(request, qs, fn, size=12):
@@ -90,7 +95,7 @@ def product_detail(request, slug):
     if not p.is_live and not (request.user.is_authenticated and (request.user == p.owner or request.user.is_staff)):
         return Response({"detail": "Not found."}, status=404)
     d = product_dict(p, user_state(request))
-    d.update(description=p.description, maker=p.owner.username, is_live=p.is_live, status=p.status, screenshots=[s.image.url for s in p.screenshots.all()])
+    d.update(description=p.description, maker=services.display_name(p.owner), is_live=p.is_live, status=p.status, screenshots=[s.image.url for s in p.screenshots.all()])
     return Response(d)
 
 
@@ -185,7 +190,7 @@ def pricing(request):
     ads = [{"slot_type": k, "name": services.SLOT_INFO[k][0], "description": services.SLOT_INFO[k][1],
             "price": v[cur]} for k, v in settings.AD_PRICING.items()]
     return Response({"currency": cur, "plans": plans, "ads": ads})
-
+ 
 
 # ----------------------------------------------------------- like / upvote ---
 def _toggle(model, field, pk, user):
@@ -397,3 +402,52 @@ def rail(request):
             "slot_open": True, "slot_type": "sidebar", "category": "", "position": pos,
             "label": services.slot_label("sidebar", None, pos), "price": services.slot_price("sidebar", cur)})
     return Response({"ads": out})
+
+
+# ------------------------------------------------------------- account ---
+class ProfileForm(serializers.Serializer):
+    first_name = serializers.CharField(max_length=150, allow_blank=True, required=False)
+    last_name = serializers.CharField(max_length=150, allow_blank=True, required=False)
+    display_name = serializers.CharField(max_length=40, allow_blank=True, required=False)
+
+
+def _profile_data(u, prof):
+    return {"username": u.username, "email": u.email, "first_name": u.first_name,
+            "last_name": u.last_name, "display_name": prof.display_name}
+
+
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAuthenticated])
+def my_profile(request):
+    u = request.user
+    prof, _ = Profile.objects.get_or_create(user=u)
+    if request.method == "PATCH":
+        s = ProfileForm(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        u.first_name = d.get("first_name", u.first_name).strip()
+        u.last_name = d.get("last_name", u.last_name).strip()
+        u.save(update_fields=["first_name", "last_name"])
+        if "display_name" in d:
+            prof.display_name = d["display_name"].strip()
+            prof.save(update_fields=["display_name"])
+    return Response(_profile_data(u, prof))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    u, d = request.user, request.data
+    if not u.check_password(d.get("current_password", "")):
+        return Response({"current_password": ["Current password is incorrect."]}, status=400)
+    new = d.get("new_password", "")
+    if new != d.get("confirm_password"):
+        return Response({"confirm_password": ["Passwords do not match."]}, status=400)
+    try:
+        validate_password(new, u)
+    except DjangoValidationError as e:
+        return Response({"new_password": list(e.messages)}, status=400)
+    u.set_password(new)
+    u.save()
+    update_session_auth_hash(request, u)   # stay logged in
+    return Response({"ok": True})

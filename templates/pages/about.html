@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block page %}about{% endblock %}
+{% block title %}About us · Launchly{% endblock %}
+{% block content %}
+<article class="doc">
+  <h1>About us</h1>
+  <p>Launchly is a home for new products. We help makers get their first users, honest feedback and a little momentum on launch day.</p>
+  <h2>What we believe</h2>
+  <ul>
+    <li><b>Makers come first.</b> Launching should be simple, fair and fast, whether you are a solo founder or a small studio.</li>
+    <li><b>The community decides.</b> Upvotes and likes, not budgets, decide what rises to the top of each day, week and month.</li>
+    <li><b>Ads are always labelled.</b> Paid slots are clearly marked as Sponsored, and they never change organic rankings.</li>
+  </ul>
+  <h2>How it works</h2>
+  <p>Submit your product, we review it, and it goes live right away or at the time you schedule. Want more reach? Choose a Premium launch or book an advertising slot. See the <a class="link" href="{% url 'guide' %}">launch guide</a> to get started.</p>
+</article>
+{% endblock %}

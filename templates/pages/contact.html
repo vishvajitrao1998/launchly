@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block page %}contact{% endblock %}
+{% block title %}Contact us · Launchly{% endblock %}
+{% block content %}
+<article class="doc">
+  <h1>Contact us</h1>
+  <p>Questions about a launch, billing or advertising? We usually reply within 1–2 business days.</p>
+  <div class="contact-grid">
+    <div class="card rail-card"><h3>Email</h3><p class="muted">General help, feedback and partnerships.</p><a class="link" href="mailto:{{ CONTACT_EMAIL }}">{{ CONTACT_EMAIL }}</a></div>
+    <div class="card rail-card"><h3>Advertising</h3><p class="muted">See live slot availability and book instantly.</p><a class="link" href="{% url 'advertise' %}">View ad slots</a></div>
+    <div class="card rail-card"><h3>My launch</h3><p class="muted">Check review status or fix a requested change.</p><a class="link" href="{% url 'dashboard' %}">Open dashboard</a></div>
+  </div>
+</article>
+{% endblock %}

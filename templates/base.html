@@ -38,6 +38,7 @@
   <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
 </defs></svg>
 
 <div class="backdrop" id="backdrop"></div>
@@ -63,9 +64,13 @@
     <a href="{% url 'review' %}" class="nav-link" data-nav="review" title="Review queue"><svg class="i"><use href="#i-shield"/></svg><span class="label">Review Queue</span></a>
     {% endif %}
   </nav>
-  <div class="sb-foot">
+   <div class="sb-foot">
     {% if user.is_authenticated %}
-    <div class="me" title="{{ user.username }}"><span class="avatar">{{ user.username|slice:":1"|upper }}</span><span class="label">{{ user.username }}</span></div>
+    <div class="me" title="{{ display_name }}{% if masked_email %} · {{ masked_email }}{% endif %}">
+      <span class="avatar">{{ display_name|slice:":1"|upper }}</span>
+      <span class="label me-text"><b class="me-name">{{ display_name }}</b>{% if masked_email %}<small class="me-mail">{{ masked_email }}</small>{% endif %}</span>
+    </div>
+    <a href="{% url 'account' %}" class="nav-link" data-nav="settings" title="Settings"><svg class="i"><use href="#i-settings"/></svg><span class="label">Settings</span></a>
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}
       <button class="nav-link" type="submit" title="Log out"><svg class="i"><use href="#i-logout"/></svg><span class="label">Log out</span></button>
     </form>
@@ -91,7 +96,22 @@
     </div>
   </header>
   <main class="content">{% block content %}{% endblock %}</main>
-  <footer class="foot">© Launchly · Built for makers</footer>
+  <footer class="foot">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="{% url 'home' %}"><span class="mark"><svg class="i"><use href="#i-rocket"/></svg></span><span>Launchly</span></a>
+        <p>The place where new products get their first fans. Launch today or schedule it for later.</p>
+      </div>
+      <nav class="foot-links" aria-label="Footer">
+        <a href="{% url 'about' %}">About us</a>
+        <a href="{% url 'contact' %}">Contact us</a>
+        <a href="{% url 'privacy' %}">Privacy Policy</a>
+        <a href="{% url 'disclaimer' %}">Disclaimer</a>
+        <a href="{% url 'guide' %}">Launch Guide</a>
+      </nav>
+    </div>
+    <div class="foot-copy">© {% now "Y" %} Launchly. Built for makers.</div>
+  </footer>
 </div>
 
 <div id="toasts" class="toasts" aria-live="polite"></div>
