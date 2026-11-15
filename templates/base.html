@@ -1,0 +1,97 @@
+{% load static %}<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Launchly · Launch your product to the world{% endblock %}</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <link rel="icon" type="image/png" href="https://www.imgbit.app/static/imagetools/images/ib.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- apply theme + sidebar state before first paint (no flash) -->
+  <script>(function(){try{var d=document.documentElement,t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');d.dataset.theme=t;if(localStorage.getItem('sidebar')==='collapsed')d.classList.add('sb-collapsed')}catch(e){}})()</script>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body data-page="{% block page %}{% endblock %}" data-auth="{{ request.user.is_authenticated|yesno:'1,0' }}" data-staff="{{ request.user.is_staff|yesno:'1,0' }}">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M5 15c-1.5 1-2 4-2 6 2 0 5-.5 6-2M14 4c3-1.5 6-1 7-1 0 1 .5 4-1 7l-6 6-5-5zM9 12l-3-.5L4 13M12 15l.5 3L11 20"/><circle cx="15.5" cy="8.5" r="1.3"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.3"/></symbol>
+  <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 10v4a1 1 0 0 0 1 1h3l8 5V4L7 9H4a1 1 0 0 0-1 1zM19 9a4 4 0 0 1 0 6"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM9 12l2 2 4-4"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-login" viewBox="0 0 24 24"><path d="M15 3h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-8-4.7-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.3 12 20 12 20z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+</defs></svg>
+
+<div class="backdrop" id="backdrop"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sb-head">
+    <a class="brand" href="{% url 'home' %}" title="Launchly">
+      <span class="mark"><svg class="i"><use href="#i-rocket"/></svg></span><span class="label">Launchly</span>
+    </a>
+    <button class="icon-btn sb-toggle" id="sbToggle" aria-label="Collapse sidebar"><svg class="i chev"><use href="#i-chev"/></svg></button>
+  </div>
+  <nav class="sb-nav">
+    <a href="{% url 'home' %}" class="nav-link" data-nav="home" title="Discover"><svg class="i"><use href="#i-home"/></svg><span class="label">Discover</span></a>
+    <a href="{% url 'submit' %}" class="nav-link" data-nav="submit" title="Launch a product"><svg class="i"><use href="#i-rocket"/></svg><span class="label">Launch a product</span></a>
+    <a href="{% url 'pricing' %}" class="nav-link" data-nav="pricing" title="Pricing"><svg class="i"><use href="#i-tag"/></svg><span class="label">Pricing</span></a>
+    <a href="{% url 'advertise' %}" class="nav-link" data-nav="advertise" title="Advertise"><svg class="i"><use href="#i-mega"/></svg><span class="label">Advertise</span></a>
+    {% if user.is_authenticated %}
+    <a href="{% url 'dashboard' %}" class="nav-link" data-nav="dashboard" title="My dashboard"><svg class="i"><use href="#i-grid"/></svg><span class="label">My dashboard</span></a>
+    {% endif %}
+    {% if user.is_staff %}
+    <a href="{% url 'review' %}" class="nav-link" data-nav="review" title="Review queue"><svg class="i"><use href="#i-shield"/></svg><span class="label">Review queue</span></a>
+    {% endif %}
+  </nav>
+  <div class="sb-foot">
+    {% if user.is_authenticated %}
+    <div class="me" title="{{ user.username }}"><span class="avatar">{{ user.username|slice:":1"|upper }}</span><span class="label">{{ user.username }}</span></div>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+      <button class="nav-link" type="submit" title="Log out"><svg class="i"><use href="#i-logout"/></svg><span class="label">Log out</span></button>
+    </form>
+    {% else %}
+    <a href="{% url 'login' %}?next={{ request.path }}" class="nav-link" title="Log in"><svg class="i"><use href="#i-login"/></svg><span class="label">Log in</span></a>
+    {% endif %}
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open menu"><svg class="i"><use href="#i-menu"/></svg></button>
+    <form class="search" id="searchForm" action="{% url 'home' %}" role="search">
+      <svg class="i"><use href="#i-search"/></svg>
+      <input name="q" type="search" placeholder="Search products…" autocomplete="off" aria-label="Search products">
+    </form>
+    <div class="top-actions">
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+        <svg class="i sun"><use href="#i-sun"/></svg><svg class="i moon"><use href="#i-moon"/></svg>
+      </button>
+      <a class="btn btn-primary" href="{% url 'submit' %}"><svg class="i"><use href="#i-plus"/></svg><span>Launch product</span></a>
+    </div>
+  </header>
+  <main class="content">{% block content %}{% endblock %}</main>
+  <footer class="foot">© Launchly · Built for makers</footer>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+{% block scripts_head %}{% endblock %}
+<script src="{% static 'js/app.js' %}"></script>
+<script src="{% static 'js/pages.js' %}"></script>
+</body>
+</html>

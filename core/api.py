@@ -1,0 +1,291 @@
+"""JSON API. Pages are plain templates; the browser fills them from these endpoints."""
+from datetime import timedelta
+
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Count, F, Q
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import serializers
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+
+from . import services
+from .models import AdSlot, Category, Like, Plan, Product, Upvote
+
+
+# ---------------------------------------------------------------- helpers ---
+def user_state(request):
+    if not request.user.is_authenticated:
+        return set(), set()
+    u = request.user
+    return (set(Upvote.objects.filter(user=u).values_list("product_id", flat=True)),
+            set(Like.objects.filter(user=u).values_list("product_id", flat=True)))
+
+
+def cat_dict(c):
+    return {"name": c.name, "slug": c.slug, "icon": c.icon, "color": c.color}
+
+
+def product_dict(p, state=(set(), set()), sponsored=False):
+    up, lk = state
+    return {
+        "id": p.id, "slug": p.slug, "name": p.name, "tagline": p.tagline,
+        "logo": p.logo.url if p.logo else "", "website_url": p.website_url,
+        "category": cat_dict(p.category), "is_premium": p.is_premium,
+        "upvotes": p.upvote_count, "likes": p.like_count,
+        "upvoted": p.id in up, "liked": p.id in lk,
+        "launch_at": p.launch_at, "sponsored": sponsored,
+    }
+
+
+# ------------------------------------------------------------ public reads ---
+@api_view(["GET"])
+def me(request):
+    u = request.user
+    if not u.is_authenticated:
+        return Response({"authenticated": False})
+    return Response({"authenticated": True, "username": u.username, "is_staff": u.is_staff,
+                     "credits": services.credits_for(u)})
+
+
+@api_view(["GET"])
+def categories(request):
+    now = timezone.now()
+    qs = Category.objects.annotate(
+        n=Count("products", filter=Q(products__status="approved", products__launch_at__lte=now)))
+    return Response([{**cat_dict(c), "count": c.n} for c in qs])
+
+
+@api_view(["GET"])
+def products(request):
+    qs = Product.objects.live().select_related("category")
+    if c := request.GET.get("category"):
+        qs = qs.filter(category__slug=c)
+    if q := request.GET.get("q", "").strip():
+        qs = qs.filter(Q(name__icontains=q) | Q(tagline__icontains=q))
+    qs = qs.order_by("-launch_at" if request.GET.get("sort") == "new" else "-upvote_count", "-launch_at")
+    state = user_state(request)
+    return Response([product_dict(p, state) for p in qs[:60]])
+
+
+@api_view(["GET"])
+def product_detail(request, slug):
+    p = get_object_or_404(Product.objects.select_related("category", "owner"), slug=slug)
+    if not p.is_live and not (request.user.is_authenticated and (request.user == p.owner or request.user.is_staff)):
+        return Response({"detail": "Not found."}, status=404)
+    d = product_dict(p, user_state(request))
+    d.update(description=p.description, maker=p.owner.username, is_live=p.is_live, status=p.status)
+    return Response(d)
+
+
+@api_view(["GET"])
+def feed(request):
+    """Everything the home page needs in ONE request."""
+    state = user_state(request)
+    today = timezone.localdate()
+    ads = {}
+    for a in AdSlot.objects.active_on(today).select_related("product__category"):
+        if a.product.status == Product.Status.APPROVED:
+            ads[(a.slot_type, a.category_id, a.position)] = a.product
+
+    def ad_or_open(slot_type, cat=None, pos=1):
+        p = ads.get((slot_type, cat.id if cat else None, pos))
+        if p:
+            return product_dict(p, state, sponsored=True)
+        return {"slot_open": True, "slot_type": slot_type, "category": cat.slug if cat else "", "position": pos,
+                "label": services.slot_label(slot_type, cat, pos), "price": services.slot_price(slot_type)}
+
+    sections = []
+    live = Product.objects.live().select_related("category")
+    for c in Category.objects.all():
+        sponsored_ids = {p.id for k, p in ads.items() if k[1] == c.id}
+        organic = list(live.filter(category=c).exclude(id__in=sponsored_ids).order_by("-upvote_count", "-launch_at")[:10])
+        has_ad = any((t, c.id, 1) in ads for t in ("cat_first", "cat_third"))
+        if not organic and not has_ad:
+            continue
+        # Positions 1 and 3 are paid slots; a booked one always shows, however many apps the category has.
+        items = [ad_or_open("cat_first", c)]
+        if organic:
+            items.append(product_dict(organic.pop(0), state))
+        items.append(ad_or_open("cat_third", c))
+        items += [product_dict(p, state) for p in organic]
+        sections.append({"category": cat_dict(c), "items": items})
+
+    return Response({
+        "hero": ad_or_open("hero"),
+        "spotlight": [ad_or_open("spotlight", None, i) for i in (1, 2, 3)],
+        "sections": sections,
+        "latest": [product_dict(p, state) for p in live.order_by("-launch_at")[:6]],
+    })
+
+
+@api_view(["GET"])
+def ad_board(request):
+    """Which advertisement slot is booked, for the next 4 weeks."""
+    today = timezone.localdate()
+    weeks = [{"from": today + timedelta(days=7 * i), "to": today + timedelta(days=7 * i + 6)} for i in range(4)]
+    held = list(AdSlot.objects.held().filter(ends_on__gte=today).select_related("product"))
+    rows = []
+    for d in services.slot_defs():
+        cat = d["category"]
+        ident = (d["slot_type"], cat.id if cat else None, d["position"])
+        mine = [b for b in held if (b.slot_type, b.category_id, b.position) == ident]
+        cells = []
+        for w in weeks:
+            b = next((b for b in mine if b.starts_on <= w["to"] and b.ends_on >= w["from"]), None)
+            cells.append(None if not b else {
+                "name": b.product.name, "slug": b.product.slug,
+                "logo": b.product.logo.url if b.product.logo else "",
+                "pending": b.status != AdSlot.Status.ACTIVE, "until": b.ends_on})
+        rows.append({
+            "key": f"{d['slot_type']}:{cat.slug if cat else '-'}:{d['position']}",
+            "slot_type": d["slot_type"], "position": d["position"],
+            "category": cat.slug if cat else "", "icon": cat.icon if cat else "📣",
+            "group": cat.name if cat else "Home page",
+            "label": services.slot_label(d["slot_type"], cat, d["position"]),
+            "price": services.slot_price(d["slot_type"]), "cells": cells})
+    return Response({"weeks": weeks, "rows": rows})
+
+
+@api_view(["GET"])
+def pricing(request):
+    plans = [{"slug": p.slug, "name": p.name, "tagline": p.tagline, "price": p.price_inr,
+              "period_days": p.period_days, "premium_launches": p.premium_launches,
+              "features": p.features, "highlighted": p.highlighted} for p in Plan.objects.all()]
+    ads = [{"slot_type": k, "name": services.SLOT_INFO[k][0], "description": services.SLOT_INFO[k][1],
+            "price": v} for k, v in settings.AD_PRICING_INR.items()]
+    return Response({"plans": plans, "ads": ads})
+
+
+# ----------------------------------------------------------- like / upvote ---
+def _toggle(model, field, pk, user):
+    product = get_object_or_404(Product.objects.live(), pk=pk)
+    with transaction.atomic():
+        obj, created = model.objects.get_or_create(user=user, product=product)
+        if not created:
+            obj.delete()
+        Product.objects.filter(pk=pk).update(**{field: F(field) + (1 if created else -1)})
+    product.refresh_from_db(fields=[field])
+    return Response({"active": created, "count": getattr(product, field)})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def toggle_upvote(request, pk):
+    return _toggle(Upvote, "upvote_count", pk, request.user)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def toggle_like(request, pk):
+    return _toggle(Like, "like_count", pk, request.user)
+
+
+# -------------------------------------------------------- maker: submission ---
+class ProductForm(serializers.ModelSerializer):
+    category = serializers.SlugRelatedField(slug_field="slug", queryset=Category.objects.all())
+    launch_mode = serializers.ChoiceField(choices=["now", "schedule"], write_only=True, default="now")
+    premium = serializers.BooleanField(write_only=True, default=False)
+
+    class Meta:
+        model = Product
+        fields = ["name", "tagline", "description", "website_url", "logo", "category",
+                  "scheduled_for", "launch_mode", "premium"]
+
+    def validate_logo(self, f):
+        if f and f.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError("Logo must be under 2 MB.")
+        return f
+
+    def validate(self, a):
+        if a.pop("launch_mode", "now") == "schedule":
+            s = a.get("scheduled_for")
+            if not s or s < timezone.now() + timedelta(hours=1):
+                raise serializers.ValidationError({"scheduled_for": "Pick a time at least 1 hour from now."})
+        else:
+            a["scheduled_for"] = None
+        return a
+
+    def create(self, vd):
+        vd.pop("premium", None)
+        return super().create(vd)
+
+    def update(self, inst, vd):
+        vd.pop("premium", None)
+        return super().update(inst, vd)
+
+
+def owner_dict(p, state):
+    d = product_dict(p, state)
+    d.update(status=p.status, admin_note=p.admin_note, scheduled_for=p.scheduled_for,
+             is_live=p.is_live, description=p.description)
+    return d
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def my_products(request):
+    if request.method == "GET":
+        state = user_state(request)
+        qs = Product.objects.filter(owner=request.user).select_related("category").order_by("-created_at")
+        return Response([owner_dict(p, state) for p in qs])
+
+    s = ProductForm(data=request.data)
+    s.is_valid(raise_exception=True)
+    premium = s.validated_data.get("premium", False)
+    if premium and not services.consume_credit(request.user):
+        return Response({"detail": "You have no premium launch credits left. Pick a plan on the Pricing page first."}, status=402)
+    p = s.save(owner=request.user, is_premium=premium, status=Product.Status.PENDING)
+    return Response(owner_dict(p, user_state(request)), status=201)
+
+
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAuthenticated])
+def my_product(request, pk):
+    p = get_object_or_404(Product.objects.select_related("category"), pk=pk, owner=request.user)
+    if request.method == "GET":
+        return Response(owner_dict(p, user_state(request)))
+    if p.status not in (Product.Status.PENDING, Product.Status.NEEDS_INFO):
+        return Response({"detail": "Only launches that are in review or need info can be edited."}, status=400)
+    s = ProductForm(p, data=request.data, partial=True)
+    s.is_valid(raise_exception=True)
+    s.save(status=Product.Status.PENDING)  # back into the review queue
+    return Response(owner_dict(p, user_state(request)))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_ads(request):
+    qs = AdSlot.objects.filter(product__owner=request.user).select_related("product", "category").order_by("-created_at")[:50]
+    return Response([{
+        "id": a.id, "product": a.product.name, "label": services.slot_label(a.slot_type, a.category, a.position),
+        "group": a.category.name if a.category else "Home page", "starts_on": a.starts_on,
+        "ends_on": a.ends_on, "status": a.status} for a in qs])
+
+
+# ----------------------------------------------------------- admin: review ---
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_queue(request):
+    status = request.GET.get("status", "pending")
+    counts = dict(Product.objects.values_list("status").annotate(n=Count("id")))
+    qs = Product.objects.filter(status=status).select_related("category", "owner").order_by("created_at")
+    out = []
+    for p in qs[:100]:
+        d = owner_dict(p, (set(), set()))
+        d["owner"] = {"username": p.owner.username, "email": p.owner.email}
+        out.append(d)
+    return Response({"counts": counts, "items": out})
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def admin_review(request, pk):
+    p = get_object_or_404(Product, pk=pk)
+    try:
+        services.review_product(p, request.data.get("action"), request.data.get("message", ""))
+    except ValueError as e:
+        return Response({"detail": str(e)}, status=400)
+    return Response({"ok": True, "status": p.status})

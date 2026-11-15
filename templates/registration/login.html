@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block page %}login{% endblock %}
+{% block title %}Log in · Launchly{% endblock %}
+{% block content %}
+<div class="auth card">
+  <h1>Welcome back</h1>
+  <p class="muted">Log in to launch, upvote and manage your products.</p>
+  <form method="post" class="form-card flat">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% if form.non_field_errors %}<em class="err show">{{ form.non_field_errors.0 }}</em>{% endif %}
+    <label class="field"><span>Username</span>{{ form.username }}</label>
+    <label class="field"><span>Password</span>{{ form.password }}</label>
+    <button class="btn btn-primary btn-lg" type="submit">Log in</button>
+  </form>
+  <p class="muted">New here? <a class="link" href="{% url 'signup' %}">Create an account</a></p>
+</div>
+{% endblock %}

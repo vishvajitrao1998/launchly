@@ -1,0 +1,139 @@
+"""Business rules shared by the API, the Django admin and the webhook."""
+from datetime import timedelta
+
+from django.conf import settings
+from django.core.mail import send_mail
+from django.db import transaction
+from django.db.models import F, Sum
+from django.utils import timezone
+
+from .models import AdSlot, Category, Payment, Product, Subscription
+
+SLOT_INFO = {
+    "hero": ("Hero banner", "The big banner at the very top of Home. One advertiser at a time."),
+    "spotlight": ("Sponsored spotlight", "Three featured tiles right under the hero, shown to every visitor."),
+    "cat_first": ("Category · 1st position", "Pinned to the first spot of a category list, no matter how many apps it has."),
+    "cat_third": ("Category · 3rd position", "Pinned to the third spot of a category list, no matter how many apps it has."),
+}
+ORDINAL = {1: "1st", 3: "3rd"}
+
+
+def slot_price(slot_type):
+    return settings.AD_PRICING_INR[slot_type]
+
+
+def slot_label(slot_type, category=None, position=1):
+    if slot_type == "hero":
+        return "Hero banner"
+    if slot_type == "spotlight":
+        return f"Spotlight #{position}"
+    return f"{ORDINAL[1 if slot_type == 'cat_first' else 3]} position"
+
+
+def slot_defs():
+    defs = [{"slot_type": "hero", "category": None, "position": 1}]
+    defs += [{"slot_type": "spotlight", "category": None, "position": i} for i in (1, 2, 3)]
+    for c in Category.objects.all():
+        defs.append({"slot_type": "cat_first", "category": c, "position": 1})
+        defs.append({"slot_type": "cat_third", "category": c, "position": 1})
+    return defs
+
+
+def slot_taken(slot_type, category_id, position, start, end):
+    return AdSlot.objects.held().filter(
+        slot_type=slot_type, category_id=category_id, position=position,
+        starts_on__lte=end, ends_on__gte=start,
+    ).exists()
+
+
+# ---- credits ---------------------------------------------------------------
+def _live_subs(user):
+    return Subscription.objects.filter(user=user, expires_at__gt=timezone.now())
+
+
+def credits_for(user):
+    return _live_subs(user).aggregate(s=Sum("credits_left"))["s"] or 0
+
+
+def consume_credit(user):
+    with transaction.atomic():
+        sub = _live_subs(user).select_for_update().filter(credits_left__gt=0).order_by("expires_at").first()
+        if not sub:
+            return False
+        sub.credits_left -= 1
+        sub.save(update_fields=["credits_left"])
+        return True
+
+
+def refund_credit(user):
+    sub = _live_subs(user).order_by("-expires_at").first()
+    if sub:
+        Subscription.objects.filter(pk=sub.pk).update(credits_left=F("credits_left") + 1)
+
+
+# ---- moderation ------------------------------------------------------------
+def _mail(product, subject, body):
+    if product.owner.email:
+        send_mail(subject, body, None, [product.owner.email], fail_silently=True)
+
+
+def review_product(product, action, message=""):
+    """action: approve | reject | request_info | email. Returns the product."""
+    message = (message or "").strip()
+    dash = f"{settings.SITE_URL}/dashboard/"
+    hi = f"Hi {product.owner.first_name or product.owner.username},\n\n"
+    sign = "\n\n— The Launchly team"
+
+    if action == "approve":
+        now = timezone.now()
+        product.status = Product.Status.APPROVED
+        product.admin_note = ""
+        product.launch_at = product.scheduled_for if product.scheduled_for and product.scheduled_for > now else now
+        when = "It is live now!" if product.launch_at <= now else f"It will go live on {timezone.localtime(product.launch_at):%d %b %Y, %I:%M %p}."
+        _mail(product, f"🎉 {product.name} was approved", f"{hi}Great news — {product.name} has been approved. {when}\n{dash}{sign}")
+    elif action == "reject":
+        product.status = Product.Status.REJECTED
+        product.admin_note = message
+        if product.is_premium:
+            product.is_premium = False
+            refund_credit(product.owner)  # premium credit goes back to the maker
+        _mail(product, f"{product.name} was not approved", f"{hi}Unfortunately we could not approve {product.name}.\n\nReason: {message or 'Does not meet our guidelines.'}{sign}")
+    elif action == "request_info":
+        if not message:
+            raise ValueError("Tell the maker what is missing.")
+        product.status = Product.Status.NEEDS_INFO
+        product.admin_note = message
+        _mail(product, f"Action needed: {product.name}", f"{hi}We need a bit more information before we can approve {product.name}:\n\n{message}\n\nUpdate your launch here: {dash}{sign}")
+    elif action == "email":
+        if not message:
+            raise ValueError("Write a message first.")
+        _mail(product, f"About {product.name}", f"{hi}{message}{sign}")
+        return product
+    else:
+        raise ValueError("Unknown action.")
+    product.save()
+    return product
+
+
+# ---- payments --------------------------------------------------------------
+@transaction.atomic
+def fulfil_payment(payment, razorpay_payment_id=""):
+    """Idempotent: safe to call from both /verify/ and the webhook."""
+    payment = Payment.objects.select_for_update().get(pk=payment.pk)
+    if payment.status == Payment.Status.PAID:
+        return payment
+    now = timezone.now()
+    payment.status = Payment.Status.PAID
+    payment.razorpay_payment_id = razorpay_payment_id
+    payment.paid_at = now
+    payment.save()
+    if payment.kind == Payment.Kind.PLAN and payment.plan:
+        Subscription.objects.create(
+            user=payment.user, plan=payment.plan, starts_at=now,
+            expires_at=now + timedelta(days=payment.plan.period_days),
+            credits_left=payment.plan.premium_launches,
+        )
+    elif payment.kind == Payment.Kind.AD and payment.ad_slot:
+        payment.ad_slot.status = AdSlot.Status.ACTIVE
+        payment.ad_slot.save(update_fields=["status"])
+    return payment

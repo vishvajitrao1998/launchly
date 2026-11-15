@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block page %}pricing{% endblock %}
+{% block title %}Pricing · Launchly{% endblock %}
+{% block scripts_head %}<script src="https://checkout.razorpay.com/v1/checkout.js"></script>{% endblock %}
+{% block content %}
+<section class="page-head center">
+  <h1>Simple pricing for every launch</h1>
+  <p class="muted">Start free. Upgrade when you want the Premium badge and priority review.</p>
+  <p id="creditNote" class="credit-note" hidden></p>
+</section>
+<div id="plans" class="plan-grid"></div>
+
+<section class="block">
+  <div class="block-head"><div><h2>Advertisement slots</h2><p class="muted">Billed per week and separate from subscription plans. A booked slot always shows, however many apps a category has.</p></div></div>
+  <div id="adPrices" class="ad-grid"></div>
+</section>
+
+<section class="block faq">
+  <h2>Good to know</h2>
+  <details><summary>What is a Premium launch?</summary><p>Your listing gets a Premium badge and goes to the front of the review queue. Each plan includes a number of Premium launches per month.</p></details>
+  <details><summary>Can I schedule my launch?</summary><p>Yes, on every plan. Choose a date and time when submitting; once approved your product goes public at that moment.</p></details>
+  <details><summary>How are payments handled?</summary><p>Payments are processed securely by Razorpay (UPI, cards, netbanking, wallets).</p></details>
+</section>
+{% endblock %}

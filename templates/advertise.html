@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block page %}advertise{% endblock %}
+{% block title %}Advertise · Launchly{% endblock %}
+{% block scripts_head %}<script src="https://checkout.razorpay.com/v1/checkout.js"></script>{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Advertise your product</h1>
+  <p class="muted">Pick a slot, pick your dates, pay with Razorpay. Your app appears instantly when the booking starts.</p>
+</section>
+<div class="adv-layout">
+  <div id="board" class="board-wrap"></div>
+  <aside class="card book-card" id="bookCard">
+    <h3>Book a slot</h3>
+    <div id="bookBody"><div class="skeleton" style="height:220px"></div></div>
+  </aside>
+</div>
+{% endblock %}

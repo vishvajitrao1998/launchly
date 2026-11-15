@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block page %}home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <h1>Where the next great product<br>gets its first thousand fans.</h1>
+    <p>Launch today or schedule it for later. Get upvoted, get seen, get customers.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary btn-lg" href="{% url 'submit' %}">Launch your product</a>
+      <a class="btn btn-ghost btn-lg" href="{% url 'pricing' %}">See premium launches</a>
+    </div>
+  </div>
+  <div id="heroAd" class="hero-ad"></div>
+</section>
+
+<section id="spotlightWrap" class="block">
+  <div class="block-head"><h2>Sponsored spotlight</h2><a class="link" href="{% url 'advertise' %}">Advertise here</a></div>
+  <div id="spotlight" class="spot-grid"></div>
+</section>
+
+<section class="block">
+  <div class="block-head"><h2>Browse by category</h2></div>
+  <div id="cats" class="chips"></div>
+</section>
+
+<div id="searchResults" hidden></div>
+<div id="feed"></div>
+
+<section class="block" id="latestWrap" hidden>
+  <div class="block-head"><h2>Just launched</h2></div>
+  <div id="latest" class="app-grid"></div>
+</section>
+
+<section class="block">
+  <div class="block-head">
+    <div><h2>Advertising slots</h2><p class="muted">Live availability for the next 4 weeks. Tap a free slot to book it.</p></div>
+    <a class="btn btn-ghost" href="{% url 'advertise' %}">Book a slot</a>
+  </div>
+  <div id="board" class="board-wrap"></div>
+</section>
+{% endblock %}
