@@ -43,11 +43,13 @@
     $('#spotlight').innerHTML = feed.spotlight.map((p, i) => appCard(p, i)).join('');
 
     // top products: today / yesterday / last week / last month
-    $('#topSections').innerHTML = feed.top.map(t => t.items.length ? `
+        $('#topSections').innerHTML = feed.top.map(t => `
       <section class="block">
         <div class="block-head"><h2>${esc(t.title)}</h2><a class="link" href="/top/?kind=${t.kind}&offset=${t.offset}">See all</a></div>
-        <div class="rank-list">${t.items.map((p, i) => rankItem(p, i + 1, i)).join('')}</div>
-      </section>` : '').join('');
+        ${t.items.length
+          ? `<div class="rank-list">${t.items.map((p, i) => rankItem(p, i + 1, i)).join('')}</div>`
+          : '<div class="empty sm">No launches in this period yet. <a class="link" href="/submit/">Launch Yours</a></div>'}
+      </section>`).join('');
 
     // categories + feed (with load more when one category is selected)
     let active = '', page = 1, seen = new Set();
@@ -58,7 +60,7 @@
       const list = feed.sections.filter(s => !active || s.category.slug === active);
       const total = cats.find(c => c.slug === active)?.count || 0;
       $('#feed').innerHTML = (list.length ? list.map(s => `
-        <section class="cat-section"><div class="cat-title" style="--c:${esc(s.category.color)}"><span class="cat-ico">${esc(s.category.icon)}</span><h2>${esc(s.category.name)}</h2></div>
+        <section class="cat-section"><div class="cat-title" style="--c:${esc(s.category.color)}"><span class="cat-ico">${esc(s.category.icon)}</span><h2>${esc(s.category.name)}</h2><a class="link" href="/category/${esc(s.category.slug)}/">See all</a></div>
         <div class="app-grid">${s.items.map((p, i) => appCard(p, i)).join('')}</div></section>`).join('')
         : '<div class="empty">No launches in this category yet. Be the first!</div>')
         + (active && total > 10 ? '<div class="more"><button class="btn btn-ghost" id="moreBtn">Load more</button></div>' : '');
@@ -125,6 +127,39 @@
     });
     $('#prevRange').onclick = () => { offset++; page = 1; load(); };
     $('#nextRange').onclick = () => { offset = Math.max(0, offset - 1); page = 1; load(); };
+    load();
+  };
+
+
+    /* ======================= CATEGORY / ALL PRODUCTS ======================= */
+  pages.category = async () => {
+    const slug = $('#catView').dataset.slug;
+    let sort = new URLSearchParams(location.search).get('sort') === 'new' ? 'new' : 'top', page = 1;
+    fillRail();
+
+    const cats = await api('/api/categories/');
+    const current = cats.find(c => c.slug === slug);
+    if (slug && !current) { $('#catList').innerHTML = '<div class="empty">Category not found.</div>'; return; }
+    $('#catTitle').textContent = current ? `${current.icon} ${current.name}` : 'All Products';
+    document.title = `${current ? current.name : 'All products'} · Launchly`;
+    $('#catChips').innerHTML = `<a class="chip ${slug ? '' : 'on'}" href="/products/">✨ All</a>` + cats.map(c =>
+      `<a class="chip ${c.slug === slug ? 'on' : ''}" href="/category/${esc(c.slug)}/" style="--c:${esc(c.color)}">${esc(c.icon)} ${esc(c.name)} <small>${c.count}</small></a>`).join('');
+
+    async function load() {
+      $('#catList').innerHTML = skel(6, 84);
+      const d = await api(`/api/products/?category=${encodeURIComponent(slug)}&sort=${sort}&page=${page}&page_size=15`);
+      history.replaceState(null, '', `${location.pathname}?sort=${sort}`);
+      $$('#sortTabs .tab').forEach(t => t.classList.toggle('on', t.dataset.sort === sort));
+      $('#catSub').textContent = `${d.total} product${d.total === 1 ? '' : 's'}`;
+      $('#catList').innerHTML = d.results.length
+        ? d.results.map((p, i) => sort === 'top' ? rankItem(p, d.start + i, i) : appCard(p, i)).join('')
+        : '<div class="empty">No products here yet. <a class="link" href="/submit/">Launch the first one</a></div>';
+      pager($('#catPager'), d, n => { page = n; load(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    }
+    $('#sortTabs').addEventListener('click', e => {
+      const t = e.target.closest('[data-sort]'); if (!t) return;
+      sort = t.dataset.sort; page = 1; load();
+    });
     load();
   };
 

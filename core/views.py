@@ -12,6 +12,9 @@ def top_page(request):
 def home(request):
     return render(request, "home.html")
 
+def category_page(request, slug=""):
+    return render(request, "category.html", {"slug": slug})
+
 
 def pricing(request):
     return render(request, "pricing.html")

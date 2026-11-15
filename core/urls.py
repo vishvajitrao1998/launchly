@@ -16,6 +16,8 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("signup/", views.signup, name="signup"),
     path("top/", views.top_page, name="top"),
+    path("products/", views.category_page, name="products"),
+    path("category/<slug:slug>/", views.category_page, name="category"),
 
     # public API
     path("api/me/", api.me),

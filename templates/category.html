@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block page %}category{% endblock %}
+{% block title %}Browse Products · Launchly{% endblock %}
+{% block content %}
+<div class="with-rail" id="catView" data-slug="{{ slug }}">
+  <div class="primary">
+    <section class="page-head"><h1 id="catTitle">All Products</h1><p class="muted" id="catSub"></p></section>
+    <div id="catChips" class="chips" style="margin-bottom:18px"></div>
+    <div class="top-controls">
+      <div id="sortTabs" class="tabs">
+        <button class="tab" data-sort="top">Top</button>
+        <button class="tab" data-sort="new">Newest</button>
+      </div>
+    </div>
+    <div id="catList" class="rank-list"></div>
+    <div id="catPager"></div>
+  </div>
+  {% include "partials/rail.html" %}
+</div>
+{% endblock %}
