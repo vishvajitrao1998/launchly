@@ -473,3 +473,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .rank-badge.r2 { background: linear-gradient(135deg, #f3f4f6, #b8bec9); color: #2f3541; border-color: transparent; }
 .rank-badge.r3 { background: linear-gradient(135deg, #f6c79a, #c2713a); color: #3a1c08; border-color: transparent; }
 .rank-badge.r1::before, .rank-badge.r2::before, .rank-badge.r3::before { opacity: .6; }
+
+
+.row-card .desc { cursor: pointer; }
+.row-card .desc.open { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.row-card .name { font-family: var(--font-display); font-size: 1.05rem; }

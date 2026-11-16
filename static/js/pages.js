@@ -148,7 +148,7 @@
 
     async function load() {
       $('#catList').innerHTML = skel(6, 84);
-      const d = await api(`/api/products/?category=${encodeURIComponent(slug)}&sort=${sort}&page=${page}&page_size=15`);
+      const d = await api(`/api/products/?category=${encodeURIComponent(slug)}&sort=${sort}&page=${page}&page=${page}`);
       history.replaceState(null, '', `${location.pathname}?sort=${sort}`);
       $$('#sortTabs .tab').forEach(t => t.classList.toggle('on', t.dataset.sort === sort));
       $('#catSub').textContent = `${d.total} product${d.total === 1 ? '' : 's'}`;
@@ -431,7 +431,7 @@
         <article class="row-card" style="--i:${i}" data-id="${p.id}" data-name="${esc(p.name)}">
           <div class="logo" style="--c:${esc(p.category.color)}">${logoHtml(p)}</div>
           <div class="grow">
-            <div class="title-row"><b>${esc(p.name)}</b>${p.is_premium ? premiumBadge : ''}<a class="link" href="${esc(p.website_url)}" target="_blank" rel="noopener">${esc(p.website_url)}</a></div>
+            <div class="title-row"><b><a class="name" href="/product/${esc(p.slug)}/" target="_blank" rel="noopener">${esc(p.name)}</a></b>${p.is_premium ? premiumBadge : ''}<a class="link" href="${esc(p.website_url)}" target="_blank" rel="noopener">${esc(p.website_url)}</a></div>
             <div class="meta-line"><span>${esc(p.category.icon)} ${esc(p.category.name)}</span><span>by ${esc(p.owner.username)} (${esc(p.owner.email || 'no email')})</span>${p.scheduled_for ? `<span><svg class="i" style="width:14px;height:14px"><use href="#i-clock"/></svg> Wants ${fmtDate(p.scheduled_for, true)}</span>` : ''}</div>
             <p class="desc"><b>${esc(p.tagline)}</b><br>${esc(p.description_text)}</p>
             ${p.admin_note ? `<div class="note">Last note: ${esc(p.admin_note)}</div>` : ''}
@@ -440,6 +440,7 @@
               <button class="btn btn-sm" data-review="request_info">Request info</button>
               ${status !== 'rejected' ? '<button class="btn btn-sm btn-bad" data-review="reject">Reject</button>' : ''}
               <button class="btn btn-sm btn-ghost" data-review="email">Email maker</button>
+              <a class="btn btn-sm btn-ghost" href="/product/${esc(p.slug)}/" target="_blank" rel="noopener">View details</a>
             </div>
           </div></article>`).join('') : '<div class="empty">Nothing here 🎉</div>';
           pager($('#qPager'), d, n => { page = n; load(); });
@@ -447,6 +448,7 @@
 
     $('#tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { status = t.dataset.tab; page = 1; load(); } });
     $('#queue').addEventListener('click', e => {
+      const d = e.target.closest('.desc'); if (d) { d.classList.toggle('open'); return; }
       const b = e.target.closest('[data-review]'); if (!b) return;
       const card = b.closest('.row-card'), id = card.dataset.id, action = b.dataset.review;
       const send = async message => {
@@ -477,7 +479,8 @@
     catch (e) { el.innerHTML = '<div class="empty">This product could not be found.</div>'; return; }
     document.title = `${p.name} · Launchly`;
     el.innerHTML = `
-      ${p.is_live ? '' : '<div class="callout warn">Preview only. This product is not public yet.</div>'}
+      ${p.is_live ? '' : `<div class="callout warn">Preview only. This product is not public yet (status: <b>${esc(p.status)}</b>).
+      ${document.body.dataset.staff === '1' ? '<a class="link" href="/review/">← Back to review queue</a>' : ''}</div>`}
       <article class="card pd reveal" data-id="${p.id}">
         <div class="pd-top" style="--c:${esc(p.category.color)}">
           <div class="logo">${logoHtml(p)}</div>

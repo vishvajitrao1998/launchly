@@ -14,7 +14,7 @@ from PIL import Image
 from . import services
 from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot, Profile
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-
+from django.conf import settings
 import html as _html
 import re
 
@@ -92,7 +92,7 @@ def products(request):
         qs = qs.filter(Q(name__icontains=q) | Q(tagline__icontains=q))
     qs = qs.order_by("-launch_at" if request.GET.get("sort") == "new" else "-upvote_count", "-launch_at")
     state = user_state(request)
-    return Response(paginate(request, qs, lambda p: product_dict(p, state)))
+    return Response(paginate(request, qs, lambda p: product_dict(p, state), size=settings.PAGE_SIZES["products"]))
  
 
 @api_view(["GET"])
@@ -103,7 +103,7 @@ def product_detail(request, slug):
     d = product_dict(p, user_state(request))
     d.update(description=render_description(p.description), maker=services.display_name(p.owner), is_live=p.is_live, status=p.status, screenshots=[s.image.url for s in p.screenshots.all()],)
     return Response(d)
-
+ 
 
 @api_view(["GET"])
 def feed(request):
@@ -139,10 +139,11 @@ def feed(request):
         items += [product_dict(p, state) for p in organic]
         sections.append({"category": cat_dict(c), "items": items})
 
-    def top_block(title, kind, offset, limit=5):
-        s, e, _, _ = services.period_range(kind, offset)
-        qs = live.filter(launch_at__gte=s, launch_at__lt=e).order_by("-upvote_count", "-launch_at")[:limit]
-        return {"title": title, "kind": kind, "offset": offset, "items": [product_dict(p, state) for p in qs]}
+        def top_block(title, kind, offset, limit=5):
+            s, e, _, _ = services.period_range(kind, offset)
+            qs = live.filter(launch_at__gte=s, launch_at__lt=e).order_by("-upvote_count", "-launch_at")[:limit]
+            return {"title": title, "kind": kind, "offset": offset,
+                    "items": [product_dict(p, state) for p in qs]}
 
     return Response({
         "hero": ad_or_open("hero"),
@@ -302,7 +303,7 @@ def my_products(request):
               .prefetch_related("screenshots").order_by("-created_at"))
         if st := request.GET.get("status"):
             qs = qs.filter(status=st)
-        return Response(paginate(request, qs, lambda p: owner_dict(p, state), size=8))
+        return Response(paginate(request, qs, lambda p: owner_dict(p, state), size=settings.PAGE_SIZES["mine"]))
 
     s = ProductForm(data=request.data)
     s.is_valid(raise_exception=True)
@@ -354,7 +355,7 @@ def admin_queue(request):
         d = owner_dict(p, (set(), set()))
         d["owner"] = {"username": p.owner.username, "email": p.owner.email}
         return d
-    return Response({"counts": counts, **paginate(request, qs, row, size=10)})
+    return Response({"counts": counts, **paginate(request, qs, row, size=settings.PAGE_SIZES["queue"])})
 
 
 @api_view(["POST"])
@@ -418,7 +419,7 @@ def top(request):
     qs = (Product.objects.live().filter(launch_at__gte=s, launch_at__lt=e)
           .select_related("category").order_by("-upvote_count", "-launch_at"))
     state = user_state(request)
-    data = paginate(request, qs, lambda p: product_dict(p, state), size=15)
+    data = paginate(request, qs, lambda p: product_dict(p, state), size=settings.PAGE_SIZES["top"])
     data.update(kind=kind, offset=offset, label=label, sub=sub,
                 has_prev=offset < LIMITS[kind], has_next=offset > 0)
     return Response(data)
