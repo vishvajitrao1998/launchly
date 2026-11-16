@@ -10,7 +10,7 @@
     `<div class="rank-item ${rank <= 3 ? 'top3' : ''}"><span class="rank">${rank}</span>${appCard(p, i)}</div>`;
 
   const sideAd = p => p.slot_open
-    ? `<a class="side-ad open" href="/advertise/?slot=sidebar&position=${p.position}"><span class="badge badge-sponsor">Ad slot</span><b>Your product here</b><span>${esc(p.label)} · from ${money(p.price)}/week</span></a>`
+    ? `<a class="side-ad open" href="/advertise/?slot=sidebar&position=${p.position}"><span class="badge badge-sponsor">Ad slot</span><b>Your Product Here</b><span>${esc(p.label)} · from ${money(p.price)}/week</span></a>`
     : `<a class="side-ad" href="/product/${esc(p.slug)}/"><span class="badge badge-sponsor">Sponsored</span>
         <div class="side-row"><div class="logo" style="--c:${esc(p.category.color)}">${logoHtml(p)}</div><div><b>${esc(p.name)}</b><p>${esc(p.tagline)}</p></div></div></a>`;
 
@@ -321,13 +321,35 @@
     });
     drawShots();
 
+        // rich-text description with a hard character limit
+    const MAXC = 2000;
+    const quill = new Quill('#editor', {
+      theme: 'snow',
+      placeholder: 'What does it do, who is it for, why is it different?',
+      formats: ['bold', 'italic', 'underline', 'strike', 'list', 'link'],
+      modules: { toolbar: [['bold', 'italic', 'underline', 'strike'], [{ list: 'ordered' }, { list: 'bullet' }], ['link'], ['clean']] },
+    });
+    const descCount = () => {
+      const n = quill.getLength() - 1, el = $('#descCount');
+      el.textContent = `${n}/${MAXC}`;
+      el.style.color = n >= MAXC ? 'var(--bad)' : n > MAXC * 0.9 ? 'var(--warn)' : '';
+    };
+    quill.on('text-change', () => {
+      if (quill.getLength() - 1 > MAXC) quill.deleteText(MAXC, quill.getLength());   // also trims pasted text
+      descCount();
+    });
+    descCount();
+
     if (editId) {
       $('#submitTitle').textContent = 'Update Your Launch';
       $('#submitBtn').textContent = 'Resubmit for Review';
       $('#premiumOpt').hidden = true;
       const p = await api(`/api/me/products/${editId}/`);
       kept = p.screenshots; drawShots();
-      ['name', 'tagline', 'description', 'website_url'].forEach(k => (form.elements[k].value = p[k]));
+      ['name', 'tagline', 'website_url'].forEach(k => (form.elements[k].value = p[k]));
+      if (/<[a-z][^>]*>/i.test(p.description)) quill.clipboard.dangerouslyPasteHTML(p.description);
+      else quill.setText(p.description);   // older plain-text descriptions
+      descCount();
       form.category.value = p.category.slug; count();
       if (p.scheduled_for) {
         form.launch_mode.value = 'schedule'; $('#scheduleBox').hidden = false;
@@ -339,6 +361,7 @@
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(form);
+      fd.set('description', quill.getText().trim() ? quill.root.innerHTML : '');
       if (!form.logo.files[0]) fd.delete('logo');
       fd.delete('screenshots'); added.forEach(f => fd.append('screenshots', f)); removed.forEach(id => fd.append('remove_screenshots', id));
       if (form.launch_mode.value === 'schedule' && form.scheduled_for.value) fd.set('scheduled_for', new Date(form.scheduled_for.value).toISOString());
@@ -409,7 +432,7 @@
           <div class="grow">
             <div class="title-row"><b>${esc(p.name)}</b>${p.is_premium ? premiumBadge : ''}<a class="link" href="${esc(p.website_url)}" target="_blank" rel="noopener">${esc(p.website_url)}</a></div>
             <div class="meta-line"><span>${esc(p.category.icon)} ${esc(p.category.name)}</span><span>by ${esc(p.owner.username)} (${esc(p.owner.email || 'no email')})</span>${p.scheduled_for ? `<span><svg class="i" style="width:14px;height:14px"><use href="#i-clock"/></svg> Wants ${fmtDate(p.scheduled_for, true)}</span>` : ''}</div>
-            <p class="desc"><b>${esc(p.tagline)}</b><br>${esc(p.description)}</p>
+            <p class="desc"><b>${esc(p.tagline)}</b><br>${esc(p.description_text)}</p>
             ${p.admin_note ? `<div class="note">Last note: ${esc(p.admin_note)}</div>` : ''}
             <div class="row-actions">
               ${status !== 'approved' ? '<button class="btn btn-sm btn-ok" data-review="approve">Approve</button>' : ''}
@@ -458,13 +481,14 @@
         <div class="pd-top" style="--c:${esc(p.category.color)}">
           <div class="logo">${logoHtml(p)}</div>
           <div><div class="title-row"><h1 style="font-size:2rem">${esc(p.name)}</h1>${p.is_premium ? premiumBadge : ''}</div><p class="muted">${esc(p.tagline)}</p></div>
-          <div class="pd-actions"><a class="btn" href="${esc(p.website_url)}" target="_blank" rel="noopener">Visit website</a>${p.is_live ? voteButtons(p) : ''}</div>
+          <div class="pd-actions"><a class="btn" href="${esc(p.website_url)}" target="_blank" rel="noopener">Visit</a>${p.is_live ? voteButtons(p) : ''}</div>
         </div>
         <div class="meta-line"><span class="chip sm">${esc(p.category.icon)} ${esc(p.category.name)}</span>${p.launch_at ? `<span>Launched ${fmtDate(p.launch_at, true)}</span>` : ''}<span>by ${esc(p.maker)}</span></div>
-        <div class="pd-desc">${esc(p.description)}</div>
+        <div class="pd-desc">${p.description}</div>
         ${p.screenshots.length ? `<div class="gallery">${p.screenshots.map(u => `<button class="gal" data-shot="${esc(u)}"><img loading="lazy" src="${esc(u)}" alt="${esc(p.name)} screenshot"></button>`).join('')}</div>` : ''}
       </article>`;
       el.addEventListener('click', e => { const g = e.target.closest('[data-shot]'); if (g) modal(`<img class="lightbox" src="${esc(g.dataset.shot)}" alt=""><div class="row-actions"><button class="btn" data-close>Close</button></div>`); });
+      $$('.pd-desc a').forEach(a => { a.target = '_blank'; });
   };
 
     /* ======================= SETTINGS ======================= */

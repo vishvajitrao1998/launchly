@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block page %}submit{% endblock %}
 {% block title %}Launch a product · Launchly{% endblock %}
+{% block scripts_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+{% endblock %}
 {% block content %}
 <div class="narrow">
   <section class="page-head">
@@ -10,23 +14,30 @@
 <div id="adminNote" class="callout warn" hidden></div>
 <form id="submitForm" class="card form-card" data-edit="{{ edit_id }}" novalidate>
   <div class="grid-2">
-    <label class="field"><span>Product name</span><input name="name" maxlength="80" required placeholder="Acme Analytics"><em class="err"></em></label>
+    <label class="field"><span>Product Name</span><input name="name" maxlength="80" required placeholder="Acme Analytics"><em class="err"></em></label>
     <label class="field"><span>Category</span><select name="category" required></select><em class="err"></em></label>
   </div>
   <label class="field"><span>Tagline <small id="tagCount">0/140</small></span><input name="tagline" maxlength="140" required placeholder="One line that makes people click"><em class="err"></em></label>
-  <label class="field"><span>Description</span><textarea name="description" rows="6" required placeholder="What does it do, who is it for, why is it different?"></textarea><em class="err"></em></label>
-  <div class="grid-2">
-    <fieldset class="field">
-      <span>Screenshots <small id="shotCount">0/3</small></span>
-      <div class="shots" id="shots"></div>
-      <input type="file" name="screenshots" accept="image/*" multiple hidden>
-      <div><button type="button" class="btn btn-ghost" id="addShot">Add screenshots (max 3, 3 MB each)</button></div>
-      <em class="err"></em>
-    </fieldset>
-    <label class="field"><span>Website URL</span><input name="website_url" type="url" required placeholder="https://"><em class="err"></em></label>
-    <label class="field"><span>Logo (max 2 MB)</span>
-      <div class="file"><img id="logoPrev" alt="" hidden><input name="logo" type="file" accept="image/*"></div><em class="err"></em></label>
+  <div class="field">
+    <span>Description <small id="descCount">0/2000</small></span>
+    <div id="editor"></div>
+    <input type="hidden" name="description">
+    <em class="err"></em>
   </div>
+
+  <div class="grid-2">
+    <label class="field"><span>Website URL</span><input name="website_url" type="url" required placeholder="https://"><em class="err"></em></label>
+    <label class="field"><span>Logo (max 2 MB)</span> <div class="file"><img id="logoPrev" alt="" hidden><input name="logo" type="file" accept="image/*"></div><em class="err"></em></label>
+  </div>
+
+  <fieldset class="field">
+    <span>Screenshots <small id="shotCount">0/3</small></span>
+    <div class="shots" id="shots"></div>
+    <input type="file" name="screenshots" accept="image/*" multiple hidden>
+    <div><button type="button" class="btn btn-ghost" id="addShot">Add screenshots (max 3, 3 MB each)</button></div>
+    <em class="err"></em>
+  </fieldset>
+
 
   <fieldset class="field">
     <span>When should it launch?</span>
@@ -41,13 +52,13 @@
 
   <label class="choice premium-opt" id="premiumOpt">
     <input type="checkbox" name="premium">
-    <b><span class="badge badge-premium"><svg class="i"><use href="#i-star"/></svg>Premium</span> Premium launch</b>
+    <b><span class="badge badge-premium"><svg class="i"><use href="#i-star"/></svg>Premium</span> Premium Launch</b>
     <small id="premiumNote">Badge on your listing and priority review.</small>
   </label>
 
   <div class="form-foot">
     <em class="err" id="formErr"></em>
-    <button class="btn btn-primary btn-lg" type="submit" id="submitBtn">Submit for review</button>
+    <button class="btn btn-primary btn-lg" type="submit" id="submitBtn">Submit for Review</button>
   </div>
 </form>
 </div>

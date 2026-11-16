@@ -3,7 +3,7 @@
 {% block title %}Log in · Launchly{% endblock %}
 {% block content %}
 <div class="auth card">
-  <h1>Welcome back</h1>
+  <h1>Login</h1>
   <p class="muted">Log in to launch, upvote and manage your products.</p>
   <form method="post" class="form-card flat">{% csrf_token %}
     <input type="hidden" name="next" value="{{ next }}">

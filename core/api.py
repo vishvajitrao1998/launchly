@@ -15,6 +15,12 @@ from . import services
 from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot, Profile
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 
+import html as _html
+import re
+
+import nh3
+from django.template.defaultfilters import linebreaks
+
 
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
@@ -95,7 +101,7 @@ def product_detail(request, slug):
     if not p.is_live and not (request.user.is_authenticated and (request.user == p.owner or request.user.is_staff)):
         return Response({"detail": "Not found."}, status=404)
     d = product_dict(p, user_state(request))
-    d.update(description=p.description, maker=services.display_name(p.owner), is_live=p.is_live, status=p.status, screenshots=[s.image.url for s in p.screenshots.all()])
+    d.update(description=render_description(p.description), maker=services.display_name(p.owner), is_live=p.is_live, status=p.status, screenshots=[s.image.url for s in p.screenshots.all()],)
     return Response(d)
 
 
@@ -217,6 +223,27 @@ def toggle_like(request, pk):
 
 
 # -------------------------------------------------------- maker: submission ---
+DESC_MIN, DESC_MAX = 20, 2000
+ALLOWED_TAGS = {"p", "br", "strong", "em", "u", "s", "ul", "ol", "li", "a"}
+
+
+def clean_html(h):
+    return nh3.clean(h or "", tags=ALLOWED_TAGS, attributes={"a": {"href"}},
+                     url_schemes={"http", "https", "mailto"})
+
+
+def plain_text(h):
+    """Visible text only (used for the character limit and for previews)."""
+    h = re.sub(r"</(p|li)>|<br\s*/?>", " ", h or "")
+    return _html.unescape(nh3.clean(h, tags=set())).replace("\xa0", " ").strip()
+
+
+def render_description(d):
+    """Safe HTML for display. Old plain-text descriptions are converted to paragraphs."""
+    if not re.search(r"<[a-zA-Z][^>]*>", d or ""):
+        return str(linebreaks(d or "", autoescape=True))
+    return clean_html(d)
+
 class ProductForm(serializers.ModelSerializer):
     category = serializers.SlugRelatedField(slug_field="slug", queryset=Category.objects.all())
     launch_mode = serializers.ChoiceField(choices=["now", "schedule"], write_only=True, default="now")
@@ -231,6 +258,15 @@ class ProductForm(serializers.ModelSerializer):
         if f and f.size > 2 * 1024 * 1024:
             raise serializers.ValidationError("Logo must be under 2 MB.")
         return f
+
+    def validate_description(self, v):
+        clean = clean_html(v)
+        n = len(plain_text(clean))
+        if n < DESC_MIN:
+            raise serializers.ValidationError(f"Description must be at least {DESC_MIN} characters.")
+        if n > DESC_MAX + 10:   # +10: tolerance for newline counting differences vs the editor
+            raise serializers.ValidationError(f"Description is too long ({n}/{DESC_MAX} characters).")
+        return clean
 
     def validate(self, a):
         if a.pop("launch_mode", "now") == "schedule":
@@ -253,7 +289,7 @@ class ProductForm(serializers.ModelSerializer):
 def owner_dict(p, state):
     d = product_dict(p, state)
     d.update(status=p.status, admin_note=p.admin_note, scheduled_for=p.scheduled_for,
-             is_live=p.is_live, description=p.description, screenshots=[{"id": s.id, "url": s.image.url} for s in p.screenshots.all()])
+             is_live=p.is_live, description=p.description, screenshots=[{"id": s.id, "url": s.image.url} for s in p.screenshots.all()],description_text=plain_text(p.description))
     return d
 
 
