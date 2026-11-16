@@ -137,11 +137,11 @@ class AdSlotQuerySet(models.QuerySet):
 
 class AdSlot(models.Model):
     class Type(models.TextChoices):
-        HERO = "hero", "Home hero banner"
-        SPOTLIGHT = "spotlight", "Sponsored spotlight"
-        CAT_FIRST = "cat_first", "Category list – 1st position"
-        CAT_THIRD = "cat_third", "Category list – 3rd position"
-        SIDEBAR = "sidebar", "Right sidebar"
+        HERO = "hero", "Home Hero Banner"
+        SPOTLIGHT = "spotlight", "Sponsored Spotlight"
+        CAT_FIRST = "cat_first", "Category list – 1st Position"
+        CAT_THIRD = "cat_third", "Category list – 3rd Position"
+        SIDEBAR = "sidebar", "Right Sidebar"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Awaiting payment"

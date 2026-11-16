@@ -10,11 +10,11 @@ from datetime import date, datetime, time, timedelta
 from .models import AdSlot, Category, Payment, Product, Subscription
 
 SLOT_INFO = {
-    "hero": ("Hero banner", "The big banner at the very top of Home. One advertiser at a time."),
-    "spotlight": ("Sponsored spotlight", "Three featured tiles right under the hero, shown to every visitor."),
-    "sidebar": ("Right sidebar", "Two sponsored tiles in the right rail on Home and the Leaderboard."),
-    "cat_first": ("Category · 1st position", "Pinned to the first spot of a category list, no matter how many apps it has."),
-    "cat_third": ("Category · 3rd position", "Pinned to the third spot of a category list, no matter how many apps it has."),
+    "hero": ("Hero Banner", "The big banner at the very top of Home. One advertiser at a time."),
+    "spotlight": ("Sponsored Spotlight", "Three featured tiles right under the hero, shown to every visitor."),
+    "sidebar": ("Right Sidebar", "Two sponsored tiles in the right rail on Home and the Leaderboard."),
+    "cat_first": ("Category · 1st Position", "Pinned to the first spot of a category list, no matter how many apps it has."),
+    "cat_third": ("Category · 3rd Position", "Pinned to the third spot of a category list, no matter how many apps it has."),
 }
 ORDINAL = {1: "1st", 3: "3rd"}
 
