@@ -155,7 +155,7 @@ p { margin: 0; } a { color: inherit; text-decoration: none; }
 .pop { animation: pop .45s var(--ease); }
 .app-card.is-premium { border-color: transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--gold) border-box; border: 1.5px solid transparent; }
 .app-card.sponsored { background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 7%, var(--surface)), var(--surface)); }
-.app-card.slot-open { border-style: dashed; background: transparent; color: var(--muted); justify-content: center; text-align: center; flex-direction: column; gap: 2px; min-height: 90px; }
+.app-card.slot-open { border-style: dashed; background: transparent; color: var(--muted); justify-content: center; text-align: center; flex-direction: column; gap: 2px; min-height: 90px; border-color: #f2762e;}
 .app-card.slot-open b { color: var(--text); } .app-card.slot-open:hover { color: var(--primary); border-color: var(--primary); }
 .cat-section { margin-top: 40px; } .cat-title { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .cat-ico { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-size: 1.15rem; background: color-mix(in srgb, var(--c) 16%, transparent); }
@@ -326,7 +326,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=search]):focus, select:fo
 .side-row .logo { width: 48px; height: 48px; border-radius: 13px; background: var(--c, var(--primary)); color: #fff; display: grid; place-items: center; font-weight: 800; overflow: hidden; flex: none; }
 .side-row .logo img { width: 100%; height: 100%; object-fit: cover; }
 .side-row p { color: var(--muted); font-size: .88rem; line-height: 1.4; margin-top: 2px; }
-.side-ad.open { border-style: dashed; background: transparent; box-shadow: none; text-align: center; justify-items: center; align-content: center; min-height: 130px; color: var(--muted); }
+.side-ad.open { border-style: dashed; background: transparent; box-shadow: none; text-align: center; justify-items: center; align-content: center; min-height: 130px; color: var(--muted); border-color: #f2762e;}
 .side-ad.open b { color: var(--text); } .side-ad.open:hover { color: var(--primary); }
 
 /* ---------- ranked lists + leaderboard ---------- */
@@ -446,3 +446,30 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 @keyframes nameflow { to { background-position: -250% 0; } }
 @media (max-width: 1100px) { .greet-hello { display: none; } .greet-name { font-size: 1.15rem; } }
 @media (max-width: 700px) { .greet { display: none; } }
+
+
+/* Two cols */
+/* two products per row in the Home top sections */
+.rank-list.two-col { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px 16px; }
+.rank-list.two-col .rank { width: 26px; font-size: 1.15rem; }
+.rank-list.two-col .rank-item { gap: 8px; }
+.rank-list.two-col .vote, .rank-list.two-col .like { width: 46px; }
+.rank-list.two-col .app-card { padding: 14px; gap: 12px; }
+
+
+/* ---------- rank badge inside the card ---------- */
+.rank-badge {
+  position: absolute; top: -10px; left: -10px; z-index: 2;
+  min-width: 32px; height: 32px; padding: 0 9px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 1px;
+  border-radius: 11px 11px 11px 4px;
+  font-family: var(--font-display); font-weight: 800; font-size: .95rem; letter-spacing: -.02em;
+  background: var(--surface); color: var(--muted);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 14px -6px rgba(60, 30, 10, .35);
+}
+.rank-badge::before { content: "#"; font-size: .68em; opacity: .55; }
+.rank-badge.r1 { background: linear-gradient(135deg, #fde68a, #f59e0b 60%, #ea580c); color: #3b2200; border-color: transparent; box-shadow: 0 8px 18px -6px rgba(245, 158, 11, .7); }
+.rank-badge.r2 { background: linear-gradient(135deg, #f3f4f6, #b8bec9); color: #2f3541; border-color: transparent; }
+.rank-badge.r3 { background: linear-gradient(135deg, #f6c79a, #c2713a); color: #3a1c08; border-color: transparent; }
+.rank-badge.r1::before, .rank-badge.r2::before, .rank-badge.r3::before { opacity: .6; }

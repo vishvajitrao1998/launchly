@@ -92,12 +92,14 @@
   const premiumBadge = '<span class="badge badge-premium"><svg class="i"><use href="#i-star"/></svg>Premium</span>';
   const logoHtml = p => p.logo ? `<img loading="lazy" src="${esc(p.logo)}" alt="">` : esc(initials(p.name));
 
-  function appCard(p, i = 0) {
+  function appCard(p, i = 0, rank = 0) {
     if (p.slot_open) {
       return `<a class="app-card slot-open reveal" style="--i:${i}" href="/advertise/?slot=${esc(p.slot_type)}&category=${esc(p.category)}&position=${p.position}">
         <b>Your App Here</b><span class="muted">${esc(p.label)} · from ${rupee(p.price)}/week</span></a>`;
     }
+        
     return `<article class="app-card reveal ${p.is_premium ? 'is-premium' : ''} ${p.sponsored ? 'sponsored' : ''}" style="--i:${i}" data-id="${p.id}">
+      ${rank ? `<span class="rank-badge ${rank <= 3 ? 'r' + rank : ''}" aria-label="Rank ${rank}">${rank}</span>` : ''}
       <a class="logo" href="/product/${esc(p.slug)}/" style="--c:${esc(p.category.color)}">${logoHtml(p)}</a>
       <div class="body">
         <div class="title-row"><a class="name" href="/product/${esc(p.slug)}/">${esc(p.name)}</a>${p.is_premium ? premiumBadge : ''}${p.sponsored ? '<span class="badge badge-sponsor">Sponsored</span>' : ''}</div>

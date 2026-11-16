@@ -7,8 +7,8 @@
   const localDate = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
     /* ---------- shared: rank rows + right rail ---------- */
-  const rankItem = (p, rank, i = 0) =>
-    `<div class="rank-item ${rank <= 3 ? 'top3' : ''}"><span class="rank">${rank}</span>${appCard(p, i)}</div>`;
+  
+  const rankItem = (p, rank, i = 0) => appCard(p, i, rank);
 
   const sideAd = p => p.slot_open
     ? `<a class="side-ad open" href="/advertise/?slot=sidebar&position=${p.position}"><span class="badge badge-sponsor">Ad slot</span><b>Your Product Here</b><span>${esc(p.label)} · from ${money(p.price)}/week</span></a>`
@@ -48,7 +48,7 @@
       <section class="block">
         <div class="block-head"><h2>${esc(t.title)}</h2><a class="link" href="/top/?kind=${t.kind}&offset=${t.offset}">See all</a></div>
         ${t.items.length
-          ? `<div class="rank-list">${t.items.map((p, i) => rankItem(p, i + 1, i)).join('')}</div>`
+          ? `<div class="rank-list two-col">${t.items.map((p, i) => rankItem(p, i + 1, i)).join('')}</div>`
           : '<div class="empty sm">No launches in this period yet. <a class="link" href="/launch-product/">Launch Yours</a></div>'}
       </section>`).join('');
 
