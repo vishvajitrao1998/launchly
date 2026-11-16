@@ -143,4 +143,4 @@ if env("USE_R2", "0") == "1":
 CONTACT_EMAIL = env("CONTACT_EMAIL", "support@launchly.local")
 
 
-PAGE_SIZES = {"products": 12, "top": 15, "mine": 8, "queue": 10}
+PAGE_SIZES = {"products": 12, "top": 15, "mine": 8, "queue": 10, "TopProductLimit": 10}

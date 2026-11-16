@@ -1,7 +1,6 @@
 """JSON API. Pages are plain templates; the browser fills them from these endpoints."""
 from datetime import timedelta
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404
@@ -138,8 +137,9 @@ def feed(request):
         items.append(ad_or_open("cat_third", c))
         items += [product_dict(p, state) for p in organic]
         sections.append({"category": cat_dict(c), "items": items})
+        limit = settings.PAGE_SIZES['TopProductLimit']
 
-        def top_block(title, kind, offset, limit=5):
+        def top_block(title, kind, offset, limit=limit):
             s, e, _, _ = services.period_range(kind, offset)
             qs = live.filter(launch_at__gte=s, launch_at__lt=e).order_by("-upvote_count", "-launch_at")[:limit]
             return {"title": title, "kind": kind, "offset": offset,
