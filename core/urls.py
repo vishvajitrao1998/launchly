@@ -57,4 +57,6 @@ urlpatterns = [
 
     path("api/me/profile/", api.my_profile),
     path("api/me/password/", api.change_password),
+
+    path("api/payments/failed/", payments.failed),
 ]

@@ -116,12 +116,26 @@ def verify(request):
             "razorpay_payment_id": d.get("razorpay_payment_id"),
             "razorpay_signature": d.get("razorpay_signature")})
     except razorpay.errors.SignatureVerificationError:
+        services.fail_payment(payment, "Payment signature could not be verified.")
         payment.status = Payment.Status.FAILED
         payment.save(update_fields=["status"])
         return Response({"detail": "Payment signature mismatch."}, status=400)
     services.fulfil_payment(payment, d.get("razorpay_payment_id", ""))
     return Response({"ok": True, "kind": payment.kind})
 
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def failed(request):
+    payment = get_object_or_404(Payment, razorpay_order_id=request.data.get("razorpay_order_id"), user=request.user)
+    try:   # never mark an order as failed if Razorpay actually received money for it
+        items = rz_client().order.payments(payment.razorpay_order_id).get("items", [])
+        if any(i.get("status") in ("captured", "authorized") for i in items):
+            return Response({"ok": True, "paid": True})
+    except Exception:
+        pass
+    services.fail_payment(payment, str(request.data.get("reason", ""))[:200])
+    return Response({"ok": True})
 
 @csrf_exempt
 @require_POST

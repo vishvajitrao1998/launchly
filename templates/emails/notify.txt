@@ -1,0 +1,14 @@
+{% autoescape off %}{{ heading }}
+
+{{ intro }}
+{% if details %}
+{% for label, value in details %}{{ label }}: {{ value }}
+{% endfor %}{% endif %}{% if cta %}
+{{ cta.0 }}: {{ cta.1 }}
+{% endif %}{% if outro %}
+{{ outro }}
+{% endif %}
+--
+Launchly · {{ site_url }}
+Need help? {{ contact_email }}
+{% endautoescape %}

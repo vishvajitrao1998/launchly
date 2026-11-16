@@ -134,7 +134,8 @@ def review_product(product, action, message=""):
 # ---- payments --------------------------------------------------------------
 @transaction.atomic
 def fulfil_payment(payment, razorpay_payment_id=""):
-    """Idempotent: safe to call from both /verify/ and the webhook."""
+    """Idempotent: safe to call from both /verify/ and the webhook. Emails go out only once."""
+    from . import emails
     payment = Payment.objects.select_for_update().get(pk=payment.pk)
     if payment.status == Payment.Status.PAID:
         return payment
@@ -144,17 +145,30 @@ def fulfil_payment(payment, razorpay_payment_id=""):
     payment.paid_at = now
     payment.save()
     if payment.kind == Payment.Kind.PLAN and payment.plan:
-        Subscription.objects.create(
+        sub = Subscription.objects.create(
             user=payment.user, plan=payment.plan, starts_at=now,
             expires_at=now + timedelta(days=payment.plan.period_days),
-            credits_left=payment.plan.premium_launches,
-        )
+            credits_left=payment.plan.premium_launches)
+        transaction.on_commit(lambda: emails.plan_activated(payment, sub))
     elif payment.kind == Payment.Kind.AD and payment.ad_slot:
         payment.ad_slot.status = AdSlot.Status.ACTIVE
         payment.ad_slot.save(update_fields=["status"])
+        transaction.on_commit(lambda: emails.slot_booked(payment))
     return payment
 
-
+def fail_payment(payment, reason=""):
+    """CREATED -> FAILED (only once): frees the held ad slot and emails the user."""
+    from . import emails
+    with transaction.atomic():
+        payment = Payment.objects.select_for_update().get(pk=payment.pk)
+        if payment.status != Payment.Status.CREATED:
+            return payment
+        payment.status = Payment.Status.FAILED
+        payment.save(update_fields=["status"])
+        if payment.ad_slot_id:
+            AdSlot.objects.filter(pk=payment.ad_slot_id, status=AdSlot.Status.PENDING).update(status=AdSlot.Status.CANCELLED)
+    emails.payment_failed(payment, reason)
+    return payment
 
 def _aware(d):
     return timezone.make_aware(datetime.combine(d, time.min))

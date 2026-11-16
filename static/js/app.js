@@ -143,15 +143,25 @@
 }
 
   /* ---------- Razorpay Checkout ---------- */
-  function pay(checkout) {
+    function pay(checkout) {
     return new Promise((resolve, reject) => {
       if (!window.Razorpay) return reject(new Error('Razorpay could not load. Check your connection.'));
+      let failure = null, done = false;
       const rz = new Razorpay({
-        ...checkout, theme: { color: '#5b5bf0' },
-        modal: { ondismiss: () => reject(new Error('Payment cancelled')) },
-        handler: async r => { try { resolve(await api('/api/payments/verify/', { method: 'POST', body: r })); } catch (e) { reject(e); } },
+        ...checkout, theme: { color: '#e0475b' },
+        modal: { ondismiss: () => {
+          if (done) return;
+          if (failure) {   // the user gave up after a failed attempt: tell the server (it emails them)
+            api('/api/payments/failed/', { method: 'POST', body: { razorpay_order_id: checkout.order_id, reason: failure } }).catch(() => {});
+            reject(new Error('Payment failed. We have emailed you the details.'));
+          } else reject(new Error('Payment cancelled'));
+        } },
+        handler: async r => {
+          done = true;
+          try { resolve(await api('/api/payments/verify/', { method: 'POST', body: r })); } catch (e) { reject(e); }
+        },
       });
-      rz.on('payment.failed', r => reject(new Error(r.error?.description || 'Payment failed')));
+      rz.on('payment.failed', r => { failure = r.error?.description || 'Payment failed'; });   // user may still retry in the same window
       rz.open();
     });
   }

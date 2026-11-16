@@ -3,6 +3,8 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from . import emails
+
 
 from .forms import SignupForm
 
@@ -46,7 +48,9 @@ def review(request):
 def signup(request):
     form = SignupForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
+        # user = form.save()
         login(request, form.save())
+        # emails.welcome(user)
         return redirect(request.GET.get("next") or "dashboard")
     return render(request, "registration/signup.html", {"form": form})
 

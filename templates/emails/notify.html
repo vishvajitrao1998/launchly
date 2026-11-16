@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>{{ subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#faf5ee;font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#2b1d16;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{ intro }}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ee;padding:32px 12px;">
+<tr><td align="center">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+
+    <tr><td style="padding:0 4px 18px;">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td width="34" height="34" align="center" style="background:#e0475b;border-radius:10px;font-size:18px;line-height:34px;">🚀</td>
+        <td style="padding-left:10px;font-size:20px;font-weight:800;letter-spacing:-0.02em;color:#2b1d16;">Launchly</td>
+      </tr></table>
+    </td></tr>
+
+    <tr><td style="background:#fffdf9;border:1px solid #eaded0;border-radius:18px;overflow:hidden;">
+      <div style="height:5px;line-height:5px;font-size:0;{% if tone == 'bad' %}background:#d92d3a;{% else %}background:#e0475b;background-image:linear-gradient(90deg,#d93f6a,#f2662e,#f5a524);{% endif %}">&nbsp;</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:30px 30px 28px;">
+
+          <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;font-weight:800;letter-spacing:-0.02em;color:#2b1d16;">{{ heading }}</h1>
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.65;color:#5b483d;">{{ intro|linebreaksbr }}</p>
+
+          {% if details %}
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f4ebe0;border-radius:12px;">
+            {% for label, value in details %}
+            <tr>
+              <td style="padding:10px 16px;font-size:13px;color:#7b665a;{% if not forloop.last %}border-bottom:1px solid #eaded0;{% endif %}" width="38%" valign="top">{{ label }}</td>
+              <td style="padding:10px 16px;font-size:14px;font-weight:700;color:#2b1d16;word-break:break-word;{% if not forloop.last %}border-bottom:1px solid #eaded0;{% endif %}">{{ value }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          {% endif %}
+
+          {% if cta %}
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 22px;"><tr>
+            <td align="center" style="border-radius:12px;background:{% if tone == 'bad' %}#d92d3a{% else %}#e0475b{% endif %};">
+              <a href="{{ cta.1 }}" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px;">{{ cta.0 }}</a>
+            </td>
+          </tr></table>
+          {% endif %}
+
+          {% if outro %}<p style="margin:0;font-size:13px;line-height:1.6;color:#7b665a;">{{ outro|linebreaksbr }}</p>{% endif %}
+        </td></tr>
+      </table>
+    </td></tr>
+
+    <tr><td style="padding:20px 8px 0;text-align:center;font-size:12px;line-height:1.6;color:#a99688;">
+      You received this email because of activity on your Launchly account.<br>
+      Need help? <a href="mailto:{{ contact_email }}" style="color:#e0475b;text-decoration:none;">{{ contact_email }}</a><br>
+      © {% now "Y" %} Launchly · <a href="{{ site_url }}" style="color:#a99688;text-decoration:none;">{{ site_url }}</a>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>
