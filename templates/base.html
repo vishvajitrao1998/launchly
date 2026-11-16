@@ -83,6 +83,15 @@
 <div class="main">
   <header class="topbar">
     <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open menu"><svg class="i"><use href="#i-menu"/></svg></button>
+    {% if user.is_authenticated %}
+        <div class="greet" id="greet">
+      <span class="greet-emoji" aria-hidden="true"></span>
+      <div class="greet-text">
+        <small class="greet-hello"></small>
+        <b class="greet-name">{{ display_name }}</b>
+      </div>
+    </div>
+    {% endif %}
     <form class="search" id="searchForm" action="{% url 'home' %}" role="search">
       <svg class="i"><use href="#i-search"/></svg>
       <input name="q" type="search" placeholder="Search products…" autocomplete="off" aria-label="Search products">

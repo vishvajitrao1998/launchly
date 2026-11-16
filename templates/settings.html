@@ -7,6 +7,7 @@
 
   <form id="profileForm" class="card form-card" novalidate>
     <h3>Profile</h3>
+    <small class="muted">You can change your name and display name here. Your username and email address cannot be changed.</small>
     <div class="grid-2">
       <label class="field"><span>Username</span><input name="username" readonly></label>
       <label class="field"><span>Email</span><input name="email" readonly></label>
@@ -17,17 +18,17 @@
     </div>
     <label class="field"><span>Display name <small>shown on your products</small></span>
       <input name="display_name" maxlength="40" placeholder="How should we show your name?"><em class="err"></em></label>
-    <div class="form-foot"><em class="err form-err"></em><button class="btn btn-primary" type="submit">Save changes</button></div>
+    <div class="form-foot"><em class="err form-err"></em><button class="btn btn-primary" type="submit">Save Changes</button></div>
   </form>
 
   <form id="passwordForm" class="card form-card" style="margin-top:22px" novalidate>
-    <h3>Change password</h3>
-    <label class="field"><span>Current password</span><input type="password" name="current_password" autocomplete="current-password"><em class="err"></em></label>
+    <h3>Change Password</h3>
+    <label class="field"><span>Current Password</span><input type="password" name="current_password" autocomplete="current-password" placeholder="Current Password"><em class="err"></em></label>
     <div class="grid-2">
-      <label class="field"><span>New password</span><input type="password" name="new_password" autocomplete="new-password"><em class="err"></em></label>
-      <label class="field"><span>Confirm new password</span><input type="password" name="confirm_password" autocomplete="new-password"><em class="err"></em></label>
+      <label class="field"><span>New Password</span><input type="password" name="new_password" autocomplete="new-password" placeholder="New Password"><em class="err"></em></label>
+      <label class="field"><span>Confirm new Nassword</span><input type="password" name="confirm_password" autocomplete="new-password" placeholder="Confirm New Password"><em class="err"></em></label>
     </div>
-    <div class="form-foot"><em class="err form-err"></em><button class="btn btn-primary" type="submit">Update password</button></div>
+    <div class="form-foot"><em class="err form-err"></em><button class="btn btn-primary" type="submit">Update Password</button></div>
   </form>
 </div>
 {% endblock %}

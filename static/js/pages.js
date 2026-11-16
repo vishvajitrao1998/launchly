@@ -1,5 +1,6 @@
 /* Page controllers. Every page is a static template; these fill it from /api/. */
 (() => {
+  
   const { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, money, rupee, fmtDate, skel, logoHtml, premiumBadge, pager } = window.L;
   const $ = window.$, $$ = window.$$;
   const pages = {};
@@ -508,6 +509,7 @@
         $$('.me .me-name').forEach(el => (el.textContent = name));
         $$('.me .avatar').forEach(el => (el.textContent = name.charAt(0).toUpperCase()));
         toast('Profile Updated');
+        $$('.greet-name').forEach(el => (el.textContent = name));
       } catch (err) { showErrors(pf, err); }
       btn.disabled = false;
     });
@@ -521,6 +523,7 @@
           confirm_password: pw.elements.confirm_password.value } });
         pw.reset(); showErrors(pw, { data: {}, message: '' }); $('.form-err', pw).classList.remove('show');
         toast('Password Updated');
+        
       } catch (err) { showErrors(pw, err); }
       btn.disabled = false;
     });

@@ -207,5 +207,22 @@ function pager(el, { page, pages }, go) {
 document.addEventListener('click', () => $$('.dd.open').forEach(d => d.classList.remove('open')));
 enhanceSelects();
 
-  window.L = { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, rupee, money, initials, fmtDate, skel, logoHtml, premiumBadge, pager, enhanceSelects };
+/* ---------- greeting based on the user's local time ---------- */
+const greetEl = $('#greet');
+if (greetEl) {
+  const paint = () => {
+    const h = new Date().getHours();
+    const [hello, emoji] =
+      h < 5  ? ['Good Night', '🌙'] :
+      h < 12 ? ['Good Morning', '☀️'] :
+      h < 17 ? ['Good Afternoon', '🌤️'] :
+      h < 21 ? ['Good Evening', '🌆'] : ['Good Night', '🌙'];
+    $('.greet-hello', greetEl).textContent = hello;
+    $('.greet-emoji', greetEl).textContent = emoji;
+  };
+  paint();
+  setInterval(paint, 10 * 60 * 1000);   // keeps it right if the tab stays open
+}
+
+window.L = { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, rupee, money, initials, fmtDate, skel, logoHtml, premiumBadge, pager, enhanceSelects };
 })();

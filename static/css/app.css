@@ -427,3 +427,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .ql-toolbar.ql-snow button.ql-active { background: var(--primary-soft); opacity: 1; }
 .ql-toolbar.ql-snow button:hover .ql-stroke, .ql-toolbar.ql-snow button.ql-active .ql-stroke { stroke: var(--primary) !important; }
 .ql-toolbar.ql-snow button:hover .ql-fill, .ql-toolbar.ql-snow button.ql-active .ql-fill { fill: var(--primary) !important; }
+
+
+/* Greeting */
+/* ---------- greeting ---------- */
+.greet { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.greet-emoji { font-size: 1.6rem; line-height: 1; animation: pop .6s var(--ease); }
+.greet-text { display: grid; line-height: 1.15; min-width: 0; }
+.greet-hello { color: var(--muted); font-size: .8rem; font-weight: 600; letter-spacing: .01em; }
+.greet-name {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; letter-spacing: -.03em;
+  max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-bottom: 2px;
+  background: linear-gradient(100deg, #d93f6a, #f2662e, #f5a524, #d93f6a);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: nameflow 7s linear infinite;
+}
+@keyframes nameflow { to { background-position: -250% 0; } }
+@media (max-width: 1100px) { .greet-hello { display: none; } .greet-name { font-size: 1.15rem; } }
+@media (max-width: 700px) { .greet { display: none; } }
