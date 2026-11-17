@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 
 from . import services
-from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote, ProductScreenshot, Profile
+from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote, ProductScreenshot, Profile,ProductStat
 
 
 admin.site.register(Profile)
@@ -68,5 +68,5 @@ class PaymentAdmin(admin.ModelAdmin):
 admin.site.register([Subscription, Upvote, Like])
 
 
-
+admin.site.register(ProductStat)
 admin.site.register(ProductScreenshot)

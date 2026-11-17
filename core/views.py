@@ -63,3 +63,8 @@ def settings_page(request):
 @login_required
 def billing_page(request):
     return render(request, "billing.html")
+
+
+@login_required
+def analytics_page(request):
+    return render(request, "analytics.html")

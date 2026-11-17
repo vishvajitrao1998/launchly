@@ -104,6 +104,7 @@ class Plan(models.Model):
     tagline = models.CharField(max_length=120, blank=True)
     price_inr = models.PositiveIntegerField(default=0)
     price_usd = models.PositiveIntegerField(default=0)
+    has_analytics = models.BooleanField(default=False)
     period_days = models.PositiveSmallIntegerField(default=30)
     premium_launches = models.PositiveSmallIntegerField(default=0, help_text="Premium-badge launches included per period.")
     features = models.JSONField(default=list)
@@ -115,6 +116,17 @@ class Plan(models.Model):
 
     def __str__(self):
         return f"{self.name} (₹{self.price_inr})"
+
+
+class ProductStat(models.Model):
+    """One row per product per day. Cheap to write, cheap to chart."""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="stats")
+    day = models.DateField(db_index=True)
+    views = models.PositiveIntegerField(default=0)
+    clicks = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["product", "day"], name="uniq_stat_day")]
 
 
 class Subscription(models.Model):

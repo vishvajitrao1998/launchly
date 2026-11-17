@@ -219,3 +219,8 @@ def mask_email(email):
 def current_subscription(user):
     """Latest plan purchase (active or expired), or None = free Starter."""
     return Subscription.objects.filter(user=user).select_related("plan").order_by("-expires_at").first()
+
+
+def has_analytics(user):
+    """True while the user holds an unexpired plan that includes analytics (Scale)."""
+    return _live_subs(user).filter(plan__has_analytics=True).exists()

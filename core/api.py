@@ -11,15 +11,15 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from PIL import Image
 from . import services
-from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot, Profile
+from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot, Profile, Payment, ProductStat
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.conf import settings
 import html as _html
 import re
-
 import nh3
 from django.template.defaultfilters import linebreaks
-
+from rest_framework.decorators import throttle_classes
+from rest_framework.throttling import AnonRateThrottle
 
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
@@ -542,3 +542,83 @@ def my_payments(request):
         return {"what": what, "amount": x.amount, "currency": x.currency, "status": x.status,
                 "date": x.paid_at or x.created_at, "ref": x.razorpay_payment_id or x.razorpay_order_id}
     return Response(paginate(request, qs, row, size=8))
+
+
+# ----------------------------------------------------------- analytics ---
+class TrackThrottle(AnonRateThrottle):
+    rate = "60/min"
+
+    def get_cache_key(self, request, view):   # per IP, for logged-in users too
+        return self.cache_format % {"scope": "track", "ident": self.get_ident(request)}
+
+
+@api_view(["POST"])
+@throttle_classes([TrackThrottle])
+def track(request, pk):
+    kind = request.data.get("kind")
+    if kind not in ("view", "click"):
+        return Response({"detail": "Unknown event."}, status=400)
+    p = get_object_or_404(Product.objects.live(), pk=pk)
+    if request.user.is_authenticated and request.user == p.owner:
+        return Response({"ok": True})            # your own visits don't count
+    stat, _ = ProductStat.objects.get_or_create(product=p, day=timezone.localdate())
+    col = f"{kind}s"
+    ProductStat.objects.filter(pk=stat.pk).update(**{col: F(col) + 1})
+    return Response({"ok": True})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def analytics(request):
+    if not services.has_analytics(request.user):
+        return Response({"locked": True})
+    try:
+        days = int(request.GET.get("days", 30))
+    except ValueError:
+        days = 30
+    days = days if days in (7, 30, 90) else 30
+
+    mine = Product.objects.filter(owner=request.user)
+    options = [{"id": p.id, "name": p.name} for p in mine.order_by("name")]
+    pid = request.GET.get("product", "")
+    prods = list(mine.filter(pk=pid) if pid.isdigit() else mine)
+    ids = [p.id for p in prods]
+
+    today = timezone.localdate()
+    start = today - timedelta(days=days - 1)
+    prev_start = start - timedelta(days=days)
+    labels = [start + timedelta(days=i) for i in range(days)]
+    idx = {d: i for i, d in enumerate(labels)}
+    keys = ("views", "clicks", "upvotes", "likes")
+    series = {k: [0] * days for k in keys}
+    per = {i: dict.fromkeys(keys, 0) for i in ids}
+    prev = dict.fromkeys(keys, 0)
+
+    for s in ProductStat.objects.filter(product_id__in=ids, day__gte=prev_start, day__lte=today).values("product_id", "day", "views", "clicks"):
+        for k in ("views", "clicks"):
+            if s["day"] >= start:
+                series[k][idx[s["day"]]] += s[k]
+                per[s["product_id"]][k] += s[k]
+            else:
+                prev[k] += s[k]
+
+    lo = services._aware(prev_start)
+    for model, key in ((Upvote, "upvotes"), (Like, "likes")):
+        # bucketed in Python so it also works on MySQL without timezone tables
+        for p_id, created in model.objects.filter(product_id__in=ids, created_at__gte=lo).values_list("product_id", "created_at"):
+            d = timezone.localtime(created).date()
+            if d >= start:
+                series[key][idx[d]] += 1
+                per[p_id][key] += 1
+            else:
+                prev[key] += 1
+
+    totals = {k: {"value": sum(v[k] for v in per.values()), "prev": prev[k]} for k in keys}
+    top = []
+    for p in prods:
+        r = per[p.id]
+        top.append({"id": p.id, "name": p.name, "slug": p.slug, **r,
+                    "ctr": round(r["clicks"] / r["views"] * 100, 1) if r["views"] else 0})
+    top.sort(key=lambda x: (-x["views"], -x["upvotes"]))
+    return Response({"locked": False, "days": days, "products": options, "totals": totals,
+                     "series": {"labels": [d.isoformat() for d in labels], **series}, "top": top[:10]})

@@ -259,5 +259,16 @@ function enhancePasswords(scope = document) {
 }
 enhancePasswords();
 
-window.L = { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, rupee, money, initials, fmtDate, skel, logoHtml, premiumBadge, pager, enhanceSelects };
+
+/* ---------- analytics beacon (fire and forget) ---------- */
+function track(id, kind) {
+  try {
+    fetch(`/api/products/${id}/track/`, {
+      method: 'POST', keepalive: true, credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() }, body: JSON.stringify({ kind }),
+    });
+  } catch (e) { /* never block the page */ }
+}
+
+window.L = { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, rupee, money, initials, fmtDate, skel, logoHtml, premiumBadge, pager, enhanceSelects, track  };
 })();

@@ -22,6 +22,7 @@ urlpatterns = [
     path("products/", views.category_page, name="products"),
     path("category/<slug:slug>/", views.category_page, name="category"),
     path("billing/", views.billing_page, name="billing"),
+    path("analytics/", views.analytics_page, name="analytics"),
     
 
     # pages
@@ -70,6 +71,9 @@ urlpatterns = [
     path("api/me/billing/", api.billing),
     path("api/me/slots/", api.my_slots),
     path("api/me/payments/", api.my_payments),
+
+    path("api/products/<int:pk>/track/", api.track),
+    path("api/me/analytics/", api.analytics),
 
     # Password change
 

@@ -1,7 +1,7 @@
 /* Page controllers. Every page is a static template; these fill it from /api/. */
 (() => {
   
-  const { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, money, rupee, fmtDate, skel, logoHtml, premiumBadge, pager } = window.L;
+  const { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, money, rupee, fmtDate, skel, logoHtml, premiumBadge, pager, track } = window.L;
   const $ = window.$, $$ = window.$$;
   const pages = {};
   const localDate = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
@@ -485,7 +485,7 @@
         <div class="pd-top" style="--c:${esc(p.category.color)}">
           <div class="logo">${logoHtml(p)}</div>
           <div><div class="title-row"><h1 style="font-size:2rem">${esc(p.name)}</h1>${p.is_premium ? premiumBadge : ''}</div><p class="muted">${esc(p.tagline)}</p></div>
-          <div class="pd-actions"><a class="btn" href="${esc(p.website_url)}" target="_blank" rel="noopener">Visit</a>${p.is_live ? voteButtons(p) : ''}</div>
+          <div class="pd-actions"><a class="btn" data-visit href="${esc(p.website_url)}" target="_blank" rel="noopener">Visit</a>${p.is_live ? voteButtons(p) : ''}</div>
         </div>
         <div class="meta-line"><span class="chip sm">${esc(p.category.icon)} ${esc(p.category.name)}</span>${p.launch_at ? `<span>Launched ${fmtDate(p.launch_at, true)}</span>` : ''}<span>by ${esc(p.maker)}</span></div>
         <div class="pd-desc">${p.description}</div>
@@ -493,6 +493,12 @@
       </article>`;
       el.addEventListener('click', e => { const g = e.target.closest('[data-shot]'); if (g) modal(`<img class="lightbox" src="${esc(g.dataset.shot)}" alt=""><div class="row-actions"><button class="btn" data-close>Close</button></div>`); });
       $$('.pd-desc a').forEach(a => { a.target = '_blank'; });
+      if (p.is_live) {
+      const key = 'viewed-' + p.id;
+      try { if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); track(p.id, 'view'); } }
+      catch (e) { track(p.id, 'view'); }
+      $$('[data-visit]', el).forEach(a => ['click', 'auxclick'].forEach(ev => a.addEventListener(ev, () => track(p.id, 'click'))));
+    }
   };
 
     /* ======================= SETTINGS ======================= */
@@ -543,7 +549,7 @@
     if (!p) {
       $('#planBox').innerHTML = `<div class="card plan-sum empty-plan reveal"><h2>Starter <span class="badge badge-status st-active">Free</span></h2>
         <p class="muted">You're on the free plan: unlimited standard launches, scheduling, upvotes and likes.<br>Upgrade for Premium launches, the gold badge and priority review.</p>
-        <a class="btn btn-primary" href="/pricing/">See plans</a></div>`;
+        <a class="btn btn-primary" href="/pricing/">See Plans</a></div>`;
     } else {
       const pct = p.credits_total ? Math.round((p.credits_left / p.credits_total) * 100) : 0;
       $('#planBox').innerHTML = `<div class="card plan-sum reveal">
@@ -591,6 +597,88 @@
     }
 
     drawSlots(); drawPayments();
+  };
+
+    /* ======================= ANALYTICS (Scale plan) ======================= */
+  pages.analytics = async () => {
+    const body = $('#anBody'), sel = $('#anProduct');
+    let days = 30, product = '', last = null, charts = [], filled = false;
+    const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const num = n => Number(n).toLocaleString('en-IN');
+    const ctrOf = (c, v) => (v ? (c / v) * 100 : 0);
+    const delta = (v, p) => {
+      if (!p) return v ? ['New', 'up'] : ['No change', ''];
+      const pct = Math.round(((v - p) / p) * 100);
+      return pct === 0 ? ['No change', ''] : [`${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}%`, pct > 0 ? 'up' : 'down'];
+    };
+
+    const lockedHtml = `<div class="card locked reveal">
+      <div style="font-size:2.4rem">📈</div><h2>Analytics is a Scale Plan Feature</h2>
+      <p class="muted">See how many people view your product, click through to your website, and upvote or like it.</p>
+      <ul class="feat" style="text-align:left"><li><svg class="i"><use href="#i-check"/></svg><span>Views and website clicks per day</span></li>
+        <li><svg class="i"><use href="#i-check"/></svg><span>Upvote and like trends</span></li>
+        <li><svg class="i"><use href="#i-check"/></svg><span>Click-through rate and top products</span></li>
+        <li><svg class="i"><use href="#i-check"/></svg><span>Comparison with the previous period</span></li></ul>
+      <a class="btn btn-primary btn-lg" href="/pricing/">Upgrade to Scale</a></div>`;
+
+    function drawCharts(d) {
+      charts.forEach(c => c.destroy()); charts = [];
+      if (!$('#chViews')) return;
+      const grid = css('--border'), txt = css('--muted');
+      const labels = d.series.labels.map(l => fmtDate(l));
+      const opts = {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { color: txt, usePointStyle: true, boxWidth: 8 } } },
+        scales: { x: { grid: { display: false }, ticks: { color: txt, maxTicksLimit: 8 } },
+                  y: { beginAtZero: true, grid: { color: grid }, ticks: { color: txt, precision: 0 } } },
+      };
+      const line = (label, data, color) => ({ label, data, borderColor: color, backgroundColor: color + '22', fill: true, tension: .35, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5 });
+      const bar = (label, data, color) => ({ label, data, backgroundColor: color, borderRadius: 5, maxBarThickness: 18 });
+      charts.push(new Chart($('#chViews'), { type: 'line', options: opts,
+        data: { labels, datasets: [line('Page views', d.series.views, css('--primary')), line('Website clicks', d.series.clicks, '#f5a524')] } }));
+      charts.push(new Chart($('#chVotes'), { type: 'bar', options: opts,
+        data: { labels, datasets: [bar('Upvotes', d.series.upvotes, '#0f9d8a'), bar('Likes', d.series.likes, '#c2418f')] } }));
+    }
+
+    function render(d) {
+      $('#anControls').hidden = d.locked;
+      if (d.locked) { body.innerHTML = lockedHtml; return; }
+      if (!filled) {   // fill the product dropdown once
+        sel.innerHTML = '<option value="">All products</option>' + d.products.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+        filled = true;
+      }
+      const t = d.totals, ctr = ctrOf(t.clicks.value, t.views.value), pctr = ctrOf(t.clicks.prev, t.views.prev);
+      const cards = [['Page views', num(t.views.value), delta(t.views.value, t.views.prev)],
+        ['Website clicks', num(t.clicks.value), delta(t.clicks.value, t.clicks.prev)],
+        ['Click-through rate', ctr.toFixed(1) + '%', delta(Math.round(ctr * 10), Math.round(pctr * 10))],
+        ['Upvotes', num(t.upvotes.value), delta(t.upvotes.value, t.upvotes.prev)],
+        ['Likes', num(t.likes.value), delta(t.likes.value, t.likes.prev)]];
+      const empty = !t.views.value && !t.clicks.value;
+      body.innerHTML = `
+        <div class="kpis">${cards.map(([l, v, [dt, dc]], i) => `<div class="kpi reveal" style="--i:${i}"><small>${l}</small><b>${v}</b><span class="delta ${dc}">${dt}</span><em>vs previous ${d.days} days</em></div>`).join('')}</div>
+        ${empty ? '<div class="notice" style="margin-top:16px">No views or clicks yet in this period. They are counted when people open your product page and click “Visit website”.</div>' : ''}
+        <div class="chart-grid">
+          <div class="card chart-card"><h3>Views &amp; clicks</h3><div class="chart-box"><canvas id="chViews"></canvas></div></div>
+          <div class="card chart-card"><h3>Upvotes &amp; likes</h3><div class="chart-box"><canvas id="chVotes"></canvas></div></div>
+        </div>
+        <section class="block"><div class="block-head"><h2>Top products</h2></div>
+          <div class="card tbl-wrap"><table class="tbl"><thead><tr><th>Product</th><th>Views</th><th>Clicks</th><th>CTR</th><th>Upvotes</th><th>Likes</th></tr></thead><tbody>
+          ${d.top.length ? d.top.map(p => `<tr><td><a class="name" href="/product/${esc(p.slug)}/">${esc(p.name)}</a></td><td>${num(p.views)}</td><td>${num(p.clicks)}</td><td>${p.ctr}%</td><td>${num(p.upvotes)}</td><td>${num(p.likes)}</td></tr>`).join('')
+            : '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No products yet.</td></tr>'}
+          </tbody></table></div></section>`;
+      drawCharts(d);
+    }
+
+    async function load() { last = await api(`/api/me/analytics/?days=${days}&product=${product}`); render(last); }
+
+    $('#rangeTabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-days]'); if (!b) return;
+      days = +b.dataset.days; $$('#rangeTabs .tab').forEach(t => t.classList.toggle('on', t === b)); load();
+    });
+    sel.addEventListener('change', () => { product = sel.value; load(); });
+    // re-colour the charts when the theme is toggled
+    new MutationObserver(() => last && !last.locked && drawCharts(last)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    await load();
   };
 
   const run = pages[document.body.dataset.page];
