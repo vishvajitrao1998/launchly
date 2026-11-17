@@ -98,7 +98,7 @@ def review_product(product, action, message=""):
     message = (message or "").strip()
     dash = f"{settings.SITE_URL}/dashboard/"
     hi = f"Hi {product.owner.first_name or product.owner.username},\n\n"
-    sign = "\n\n— The Launchly team"
+    sign = "\n\n— The LetsPublic team"
 
     if action == "approve":
         now = timezone.now()

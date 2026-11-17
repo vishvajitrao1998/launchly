@@ -1,4 +1,4 @@
-/* Launchly core: theme, sidebar, API client, shared renderers. No framework, no build step. */
+/* LetsPublic core: theme, sidebar, API client, shared renderers. No framework, no build step. */
 (() => {
   const root = document.documentElement;
   const $ = (s, r = document) => r.querySelector(s);
@@ -235,6 +235,29 @@ if (greetEl) {
   paint();
   setInterval(paint, 10 * 60 * 1000);   // keeps it right if the tab stays open
 }
+
+/* ---------- show/hide password (eye icon on every password input) ---------- */
+function enhancePasswords(scope = document) {
+  $$('input[type=password]:not([data-eye])', scope).forEach(inp => {
+    inp.dataset.eye = '1';
+    const wrap = document.createElement('div');
+    wrap.className = 'pw';
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'pw-toggle'; b.setAttribute('aria-label', 'Show password');
+    b.innerHTML = '<svg class="i"><use href="#i-eye"/></svg>';
+    wrap.appendChild(b);
+    b.onclick = () => {
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      b.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye');
+      inp.focus();
+    };
+  });
+}
+enhancePasswords();
 
 window.L = { api, esc, toast, modal, appCard, voteButtons, renderBoard, pay, rupee, money, initials, fmtDate, skel, logoHtml, premiumBadge, pager, enhanceSelects };
 })();

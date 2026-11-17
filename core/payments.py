@@ -37,7 +37,7 @@ def _checkout(user, kind, amount, currency, description, **fk):
     Payment.objects.create(user=user, kind=kind, amount=amount, currency=currency,
                            razorpay_order_id=order["id"], **fk)
     return {"key": settings.RAZORPAY_KEY_ID, "amount": amount * 100, "currency": currency,
-            "order_id": order["id"], "name": "Launchly", "description": description,
+            "order_id": order["id"], "name": "LetsPublic", "description": description,
             "prefill": {"name": user.get_full_name() or user.username, "email": user.email}}
 
 

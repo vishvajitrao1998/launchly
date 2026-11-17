@@ -142,7 +142,7 @@
     const current = cats.find(c => c.slug === slug);
     if (slug && !current) { $('#catList').innerHTML = '<div class="empty">Category not found.</div>'; return; }
     $('#catTitle').textContent = current ? `${current.icon} ${current.name}` : 'All Products';
-    document.title = `${current ? current.name : 'All products'} · Launchly`;
+    document.title = `${current ? current.name : 'All products'} · LetsPublic`;
     $('#catChips').innerHTML = `<a class="chip ${slug ? '' : 'on'}" href="/products/">✨ All</a>` + cats.map(c =>
       `<a class="chip ${c.slug === slug ? 'on' : ''}" href="/category/${esc(c.slug)}/" style="--c:${esc(c.color)}">${esc(c.icon)} ${esc(c.name)} <small>${c.count}</small></a>`).join('');
 
@@ -477,7 +477,7 @@
     let p;
     try { p = await api(`/api/products/${el.dataset.slug}/`); }
     catch (e) { el.innerHTML = '<div class="empty">This product could not be found.</div>'; return; }
-    document.title = `${p.name} · Launchly`;
+    document.title = `${p.name} · LetsPublic`;
     el.innerHTML = `
       ${p.is_live ? '' : `<div class="callout warn">Preview only. This product is not public yet (status: <b>${esc(p.status)}</b>).
       ${document.body.dataset.staff === '1' ? '<a class="link" href="/review/">← Back to review queue</a>' : ''}</div>`}

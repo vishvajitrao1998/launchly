@@ -60,7 +60,7 @@ if env("DB_ENGINE", "mysql") == "sqlite":
 else:
     DATABASES = {"default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": env("DB_NAME", "launchly"),
+        "NAME": env("DB_NAME", "LetsPublic"),
         "USER": env("DB_USER", "root"),
         "PASSWORD": env("DB_PASSWORD"),
         "HOST": env("DB_HOST", "127.0.0.1"),
@@ -98,13 +98,13 @@ REST_FRAMEWORK = {
 }
 
 # ---- Email -----------------------------------------------------------------
-EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = env("EMAIL_HOST")
 EMAIL_PORT = int(env("EMAIL_PORT", "587") or 587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 EMAIL_USE_TLS = env("EMAIL_USE_TLS", "1") == "1"
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "Launchly <no-reply@launchly.local>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "LetsPublic <no-reply@LetsPublic.local>")
 EMAIL_TIMEOUT = 10
 
 # ---- Razorpay --------------------------------------------------------------
@@ -140,8 +140,8 @@ if env("USE_R2", "0") == "1":
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
 
-
-CONTACT_EMAIL = env("CONTACT_EMAIL", "support@launchly.local")
+PASSWORD_RESET_TIMEOUT = 3600   # reset links expire after 1 hour
+CONTACT_EMAIL = env("CONTACT_EMAIL", "support@LetsPublic.local")
 
 
 PAGE_SIZES = {"products": 12, "top": 15, "mine": 8, "queue": 10, "TopProductLimit": 10}

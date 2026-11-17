@@ -1,4 +1,4 @@
-# Launchly: a Django SaaS launch platform
+# LetsPublic: a Django SaaS launch platform
 
 Product-Hunt-style platform: makers submit products, admins review them, the community upvotes and likes,
 and advertisers buy paid slots. Payments via Razorpay, data in MySQL.
@@ -7,7 +7,7 @@ and advertisers buy paid slots. Payments via Razorpay, data in MySQL.
 
 ```bash
 # 1. MySQL
-mysql -u root -p -e "CREATE DATABASE launchly CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p -e "CREATE DATABASE LetsPublic CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 2. Python env
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate

@@ -474,6 +474,7 @@ def my_profile(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def change_password(request):
+    from . import emails
     u, d = request.user, request.data
     if not u.check_password(d.get("current_password", "")):
         return Response({"current_password": ["Current password is incorrect."]}, status=400)
@@ -487,4 +488,5 @@ def change_password(request):
     u.set_password(new)
     u.save()
     update_session_auth_hash(request, u)   # stay logged in
+    emails.password_changed(u) # sendig email for password change
     return Response({"ok": True})

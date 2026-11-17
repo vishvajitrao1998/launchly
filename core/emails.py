@@ -47,8 +47,8 @@ def send_notification(to, subject, heading, intro, details=None, cta=None, outro
 def welcome(user):
     name = services.display_name(user)
     send_notification(
-        user.email, f"Welcome to Launchly, {name}", f"Welcome Aboard, {name} 👋",
-        "Your Launchly account is ready. You can now launch products, upvote your favourites and book ad slots.",
+        user.email, f"Welcome to LetsPublic, {name}", f"Welcome Aboard, {name} 👋",
+        "Your LetsPublic account is ready. You can now launch products, upvote your favourites and book ad slots.",
         details=[("Username", user.username)],
         cta=("Launch your first Product", url("/launch-product/")),
         outro="Every launch is reviewed, usually within 48 hours.")
@@ -102,3 +102,24 @@ def payment_failed(payment, reason=""):
         "If any amount was debited, your bank usually refunds it within 5–7 working days.",
         details=details, cta=retry, tone="bad",
         outro=f"Still stuck? Write to {settings.CONTACT_EMAIL} and include the order ID above.")
+
+
+
+def password_reset(user, to, link):
+    send_notification(
+        to, "Reset your LetsPublic password", "Reset your password",
+        f"We received a request to reset the password for {user.username}. "
+        "This link works for 1 hour and can be used only once.",
+        details=[("Username", user.username)],
+        cta=("Choose a new password", link),
+        outro="Didn't ask for this? Ignore this email and your password stays the same.\n\n"
+              "Button not working? Copy this link into your browser:\n" + link)
+
+
+def password_changed(user):
+    send_notification(
+        user.email, "Your LetsPublic password was changed", "Password changed",
+        "The password for your account was just changed.",
+        details=[("Username", user.username), ("When", f"{timezone.localtime():%d %b %Y, %I:%M %p}")],
+        cta=("Go to settings", url("/settings/")),
+        outro=f"If this wasn't you, reset your password straight away and write to {settings.CONTACT_EMAIL}.")

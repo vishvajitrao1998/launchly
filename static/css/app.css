@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Launchly · design tokens
+   LetsPublic · design tokens
    Font: Plus Jakarta Sans · Palette: indigo → violet brand on cool slate
    ========================================================================== */
 :root {
@@ -478,3 +478,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .row-card .desc { cursor: pointer; }
 .row-card .desc.open { display: block; -webkit-line-clamp: unset; overflow: visible; }
 .row-card .name { font-family: var(--font-display); font-size: 1.05rem; }
+
+
+.pw { position: relative; display: block; }
+.pw input { padding-right: 48px !important; }
+.pw input::-ms-reveal, .pw input::-ms-clear { display: none; }
+.pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border: 0; border-radius: 10px; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: color .2s, background .2s; }
+.pw-toggle:hover { color: var(--text); background: var(--surface-2); }
+.pw-toggle .i { width: 19px; height: 19px; }

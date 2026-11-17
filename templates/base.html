@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Launchly · Launch your product to the world{% endblock %}</title>
+  <title>{% block title %}LetsPublic · Launch your product to the world{% endblock %}</title>
   <meta name="csrf-token" content="{{ csrf_token }}">
   <link rel="icon" type="image/png" href="https://www.imgbit.app/static/imagetools/images/ib.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,14 +39,16 @@
   <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6.1A9.9 9.9 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.6 7.6A16.6 16.6 0 0 0 2 12s3.5 6 10 6c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
 </defs></svg>
 
 <div class="backdrop" id="backdrop"></div>
 
 <aside class="sidebar" id="sidebar">
   <div class="sb-head">
-    <a class="brand" href="{% url 'home' %}" title="Launchly">
-      <span class="mark"><svg class="i"><use href="#i-rocket"/></svg></span><span class="label">Launchly</span>
+    <a class="brand" href="{% url 'home' %}" title="LetsPublic">
+      <span class="mark"><svg class="i"><use href="#i-rocket"/></svg></span><span class="label">LetsPublic</span>
     </a>
     <button class="icon-btn sb-toggle" id="sbToggle" aria-label="Collapse sidebar"><svg class="i chev"><use href="#i-chev"/></svg></button>
   </div>
@@ -108,7 +110,7 @@
   <footer class="foot">
     <div class="foot-grid">
       <div class="foot-brand">
-        <a class="brand" href="{% url 'home' %}"><span class="mark"><svg class="i"><use href="#i-rocket"/></svg></span><span>Launchly</span></a>
+        <a class="brand" href="{% url 'home' %}"><span class="mark"><svg class="i"><use href="#i-rocket"/></svg></span><span>LetsPublic</span></a>
         <p>The place where new products get their first fans. Launch today or schedule it for later.</p>
       </div>
       <nav class="foot-links" aria-label="Footer">
@@ -119,7 +121,7 @@
         <a href="{% url 'guide' %}">Launch Guide</a>
       </nav>
     </div>
-    <div class="foot-copy">© {% now "Y" %} Launchly. Built for makers.</div>
+    <div class="foot-copy">© {% now "Y" %} LetsPublic. Built for makers.</div>
   </footer>
 </div>
 

@@ -9,6 +9,6 @@
 {{ outro }}
 {% endif %}
 --
-Launchly · {{ site_url }}
+LetsPublic · {{ site_url }}
 Need help? {{ contact_email }}
 {% endautoescape %}
