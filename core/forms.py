@@ -24,6 +24,13 @@ class SignupForm(UserCreationForm):
 class ResetRequestForm(PasswordResetForm):
     """Same Django logic, but the mail is sent with our HTML template."""
 
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip()
+        if not list(self.get_users(email)):   # active users with a usable password, case-insensitive
+            raise forms.ValidationError("No account found with this email address.")
+        return email
+
     def send_mail(self, subject_template_name, email_template_name, context,
                   from_email, to_email, html_email_template_name=None):
         path = reverse("password_reset_confirm", kwargs={"uidb64": context["uid"], "token": context["token"]})
