@@ -57,7 +57,9 @@
   <nav class="sb-nav">
     <a href="{% url 'home' %}" class="nav-link" data-nav="home" title="Discover"><svg class="i"><use href="#i-home"/></svg><span class="label">Discover</span></a>
     <a href="{% url 'top' %}" class="nav-link" data-nav="top" title="Leaderboard"><svg class="i"><use href="#i-trophy"/></svg><span class="label">Leaderboard</span></a>
-    
+
+    <a href="/products/?sort=top" class="nav-link" data-nav="category" title="Discover by Category"><svg class="i"><use href="#i-star"/></svg><span class="label">Discover by Category</span></a>
+
     <a href="{% url 'submit' %}" class="nav-link" data-nav="submit" title="Launch a product"><svg class="i"><use href="#i-rocket"/></svg><span class="label">Launch a Product</span></a>
     
     <a href="{% url 'advertise' %}" class="nav-link" data-nav="advertise" title="Advertise"><svg class="i"><use href="#i-mega"/></svg><span class="label">Advertise</span></a>
