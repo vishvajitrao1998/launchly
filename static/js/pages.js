@@ -554,10 +554,10 @@
       const pct = p.credits_total ? Math.round((p.credits_left / p.credits_total) * 100) : 0;
       $('#planBox').innerHTML = `<div class="card plan-sum reveal">
         <div class="plan-top">
-          <div><div class="title-row"><h2>${esc(p.name)} plan</h2>
+          <div><div class="title-row"><h2>${esc(p.name)} Plan</h2>
             <span class="badge badge-status ${p.active ? 'st-active' : 'st-rejected'}">${p.active ? 'Active' : 'Expired'}</span></div>
             <p class="muted">${esc(p.tagline || '')}</p></div>
-          <a class="btn ${p.active ? 'btn-ghost' : 'btn-primary'}" href="/pricing/">${p.active ? 'Change plan' : 'Buy again'}</a>
+          <a class="btn ${p.active ? 'btn-ghost' : 'btn-primary'}" href="/pricing/">${p.active ? 'Change Plan' : 'Buy Again'}</a>
         </div>
         <div class="facts">
           <div class="fact"><small>Amount paid</small><b>${p.amount != null ? fm(p.amount, p.currency) : '-'}</b></div>

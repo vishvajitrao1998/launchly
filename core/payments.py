@@ -60,13 +60,15 @@ def buy_plan(request):
 def book_ad(request):
     d = request.data
     slot_type = d.get("slot_type")
-    cur = services.get_currency(request)
     if slot_type not in settings.AD_PRICING:
         return Response({"detail": "Unknown slot."}, status=400)
+
     category = None
     if slot_type in ("cat_first", "cat_third"):
         category = get_object_or_404(Category, slug=d.get("category"))
-        max_pos = {"spotlight": 3, "sidebar": 2}.get(slot_type, 1)
+
+    # max_pos pehle define hota hai, uske baad hi use hota hai
+    max_pos = {"spotlight": 3, "sidebar": 2}.get(slot_type, 1)
     try:
         position = int(d.get("position") or 1) if max_pos > 1 else 1
     except ValueError:
@@ -79,6 +81,7 @@ def book_ad(request):
     except (TypeError, ValueError):
         return Response({"detail": "Choose a product."}, status=400)
     product = get_object_or_404(Product, pk=product_id, owner=request.user, status=Product.Status.APPROVED)
+
     start = parse_date(str(d.get("start_date")))
     try:
         weeks = int(d.get("weeks"))
@@ -91,13 +94,13 @@ def book_ad(request):
     if services.slot_taken(slot_type, category.id if category else None, position, start, end):
         return Response({"detail": "That slot is already booked for the selected dates."}, status=409)
 
+    cur = services.get_currency(request)
     amount = services.slot_price(slot_type, cur) * weeks
     slot = AdSlot.objects.create(slot_type=slot_type, category=category, position=position,
                                  product=product, starts_on=start, ends_on=end)
     try:
-        checkout = _checkout(request.user, "ad", amount,cur,
+        checkout = _checkout(request.user, "ad", amount, cur,
                              f"{services.slot_label(slot_type, category, position)} × {weeks}w", ad_slot=slot)
-
     except RuntimeError as e:
         slot.delete()
         return Response({"detail": str(e)}, status=503)
