@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block page %}billing{% endblock %}
+{% block title %}Billing · LetsPublic{% endblock %}
+{% block content %}
+<div class="col-980">
+  <section class="page-head"><h1>Billing</h1><p class="muted">Your plan, ad slot bookings and payments.</p></section>
+
+  <div id="planBox"><div class="skeleton" style="height:240px"></div></div>
+
+  <section class="block">
+    <div class="block-head"><h2>Ad Slot Bookings</h2><a class="link" href="{% url 'advertise' %}">Book a Slot</a></div>
+    <div id="slotList" class="stack"></div>
+    <div id="slotPager"></div>
+  </section>
+
+  <section class="block">
+    <div class="block-head"><h2>Payment History</h2></div>
+    <div id="payList" class="stack"></div>
+    <div id="payPager"></div>
+  </section>
+</div>
+{% endblock %}

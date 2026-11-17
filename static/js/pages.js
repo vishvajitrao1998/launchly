@@ -532,6 +532,67 @@
     });
   };
 
+    /* ======================= BILLING ======================= */
+  pages.billing = async () => {
+    const fm = (n, c) => new Intl.NumberFormat(c === 'USD' ? 'en-US' : 'en-IN', { style: 'currency', currency: c || 'INR', maximumFractionDigits: 0 }).format(n);
+    const longDate = iso => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const phases = { pending: ['st-pending', 'Awaiting payment'], upcoming: ['st-scheduled', 'Upcoming'], running: ['st-active', 'Running'], ended: ['badge-sponsor', 'Ended'] };
+
+    // ----- plan -----
+    const { plan: p } = await api('/api/me/billing/');
+    if (!p) {
+      $('#planBox').innerHTML = `<div class="card plan-sum empty-plan reveal"><h2>Starter <span class="badge badge-status st-active">Free</span></h2>
+        <p class="muted">You're on the free plan: unlimited standard launches, scheduling, upvotes and likes.<br>Upgrade for Premium launches, the gold badge and priority review.</p>
+        <a class="btn btn-primary" href="/pricing/">See plans</a></div>`;
+    } else {
+      const pct = p.credits_total ? Math.round((p.credits_left / p.credits_total) * 100) : 0;
+      $('#planBox').innerHTML = `<div class="card plan-sum reveal">
+        <div class="plan-top">
+          <div><div class="title-row"><h2>${esc(p.name)} plan</h2>
+            <span class="badge badge-status ${p.active ? 'st-active' : 'st-rejected'}">${p.active ? 'Active' : 'Expired'}</span></div>
+            <p class="muted">${esc(p.tagline || '')}</p></div>
+          <a class="btn ${p.active ? 'btn-ghost' : 'btn-primary'}" href="/pricing/">${p.active ? 'Change plan' : 'Buy again'}</a>
+        </div>
+        <div class="facts">
+          <div class="fact"><small>Amount paid</small><b>${p.amount != null ? fm(p.amount, p.currency) : '-'}</b></div>
+          <div class="fact"><small>Purchased on</small><b>${longDate(p.started)}</b></div>
+          <div class="fact"><small>${p.active ? 'Valid until' : 'Expired on'}</small><b>${longDate(p.expires)}</b></div>
+          <div class="fact"><small>Time left</small><b>${p.active ? p.days_left + ' day' + (p.days_left === 1 ? '' : 's') : '-'}</b></div>
+        </div>
+        ${p.credits_total ? `<div><div class="meter-head"><span>Premium launches left</span><b>${p.credits_left} of ${p.credits_total}</b></div>
+          <div class="meter"><i style="width:${p.active ? pct : 0}%"></i></div></div>` : ''}
+        ${p.active ? '' : '<div class="notice">This plan has expired, so unused Premium launches are no longer available.</div>'}
+        <ul class="feat">${(p.features || []).map(f => `<li><svg class="i"><use href="#i-check"/></svg><span>${esc(f)}</span></li>`).join('')}</ul>
+      </div>`;
+    }
+
+    // ----- ad slot bookings -----
+    async function drawSlots(n = 1) {
+      const d = await api(`/api/me/slots/?page=${n}`);
+      $('#slotList').innerHTML = d.results.length ? d.results.map((s, i) => {
+        const [cls, label] = phases[s.phase];
+        return `<article class="row-card" style="--i:${i}"><div class="grow">
+          <div class="title-row"><a class="name" href="/product/${esc(s.slug)}/">${esc(s.product)}</a><span class="badge ${cls}">${label}</span></div>
+          <div class="meta-line"><span>${esc(s.group)} · ${esc(s.label)}</span><span>${fmtDate(s.starts_on)} – ${fmtDate(s.ends_on)}</span>${s.amount != null ? `<span>${fm(s.amount, s.currency)}</span>` : ''}</div>
+        </div></article>`;
+      }).join('') : '<div class="empty">No ad slot bookings yet. <a class="link" href="/advertise/">Book your first slot</a></div>';
+      pager($('#slotPager'), d, drawSlots);
+    }
+
+    // ----- payment history -----
+    async function drawPayments(n = 1) {
+      const d = await api(`/api/me/payments/?page=${n}`);
+      $('#payList').innerHTML = d.results.length ? d.results.map((x, i) => `
+        <article class="row-card" style="--i:${i}"><div class="grow">
+          <div class="title-row"><b>${esc(x.what)}</b><span class="badge ${x.status === 'paid' ? 'st-active' : 'st-rejected'}">${x.status === 'paid' ? 'Paid' : 'Failed'}</span></div>
+          <div class="meta-line"><span>${fm(x.amount, x.currency)}</span><span>${fmtDate(x.date, true)}</span><span>${esc(x.ref || '')}</span></div>
+        </div></article>`).join('') : '<div class="empty">No payments yet.</div>';
+      pager($('#payPager'), d, drawPayments);
+    }
+
+    drawSlots(); drawPayments();
+  };
+
   const run = pages[document.body.dataset.page];
 if (run) run().catch(e => e.message !== 'Please log in' && toast(e.message, 'bad')).finally(() => window.L.enhanceSelects());
 })();

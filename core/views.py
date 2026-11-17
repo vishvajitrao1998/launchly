@@ -58,3 +58,8 @@ def signup(request):
 @login_required
 def settings_page(request):
     return render(request, "settings.html")
+
+
+@login_required
+def billing_page(request):
+    return render(request, "billing.html")

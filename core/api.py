@@ -490,3 +490,55 @@ def change_password(request):
     update_session_auth_hash(request, u)   # stay logged in
     emails.password_changed(u) # sendig email for password change
     return Response({"ok": True})
+
+
+
+# ------------------------------------------------------------- billing ---
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def billing(request):
+    u, now = request.user, timezone.now()
+    sub = services.current_subscription(u)
+    plan = None
+    if sub:
+        p = sub.plan
+        paid = Payment.objects.filter(user=u, kind="plan", status="paid", plan=p).order_by("-paid_at").first()
+        plan = {"name": p.name, "tagline": p.tagline, "features": p.features,
+                "amount": paid.amount if paid else None, "currency": paid.currency if paid else "INR",
+                "started": sub.starts_at, "expires": sub.expires_at, "active": sub.expires_at > now,
+                "days_left": max((sub.expires_at - now).days, 0),
+                "credits_left": sub.credits_left, "credits_total": p.premium_launches}
+    return Response({"plan": plan})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_slots(request):
+    today = timezone.localdate()
+    qs = (AdSlot.objects.held().filter(product__owner=request.user)
+          .select_related("product", "category").prefetch_related("payment_set").order_by("-starts_on", "-id"))
+
+    def row(a):
+        paid = next((p for p in a.payment_set.all() if p.status == "paid"), None)
+        phase = ("pending" if a.status == AdSlot.Status.PENDING else "ended" if a.ends_on < today
+                 else "upcoming" if a.starts_on > today else "running")
+        return {"id": a.id, "product": a.product.name, "slug": a.product.slug,
+                "group": a.category.name if a.category else "Home page",
+                "label": services.slot_label(a.slot_type, a.category, a.position),
+                "starts_on": a.starts_on, "ends_on": a.ends_on, "phase": phase,
+                "amount": paid.amount if paid else None, "currency": paid.currency if paid else None}
+    return Response(paginate(request, qs, row, size=6))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_payments(request):
+    qs = (Payment.objects.filter(user=request.user, status__in=["paid", "failed"])
+          .select_related("plan", "ad_slot__product").order_by("-created_at"))
+
+    def row(x):
+        what = (f"{x.plan.name} plan" if x.plan else
+                f"Ad slot: {x.ad_slot.product.name}" if x.ad_slot else x.get_kind_display())
+        return {"what": what, "amount": x.amount, "currency": x.currency, "status": x.status,
+                "date": x.paid_at or x.created_at, "ref": x.razorpay_payment_id or x.razorpay_order_id}
+    return Response(paginate(request, qs, row, size=8))

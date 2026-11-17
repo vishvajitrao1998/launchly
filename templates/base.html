@@ -41,6 +41,7 @@
   <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6.1A9.9 9.9 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.6 7.6A16.6 16.6 0 0 0 2 12s3.5 6 10 6c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+<symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></symbol>
 </defs></svg>
 
 <div class="backdrop" id="backdrop"></div>
@@ -68,11 +69,12 @@
   </nav>
    <div class="sb-foot">
     {% if user.is_authenticated %}
+    <a href="{% url 'billing' %}" class="nav-link" data-nav="billing" title="Billing"><svg class="i"><use href="#i-card"/></svg><span class="label">Billing</span></a>
+    <a href="{% url 'account' %}" class="nav-link" data-nav="settings" title="Settings"><svg class="i"><use href="#i-settings"/></svg><span class="label">Settings</span></a>
     <div class="me" title="{{ display_name }}{% if masked_email %} · {{ masked_email }}{% endif %}">
       <span class="avatar">{{ display_name|slice:":1"|upper }}</span>
       <span class="label me-text"><b class="me-name">{{ display_name }}</b>{% if masked_email %}<small class="me-mail">{{ masked_email }}</small>{% endif %}</span>
     </div>
-    <a href="{% url 'account' %}" class="nav-link" data-nav="settings" title="Settings"><svg class="i"><use href="#i-settings"/></svg><span class="label">Settings</span></a>
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}
       <button class="nav-link" type="submit" title="Log out"><svg class="i"><use href="#i-logout"/></svg><span class="label">Log out</span></button>
     </form>

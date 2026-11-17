@@ -21,6 +21,8 @@ urlpatterns = [
     path("top/", views.top_page, name="top"),
     path("products/", views.category_page, name="products"),
     path("category/<slug:slug>/", views.category_page, name="category"),
+    path("billing/", views.billing_page, name="billing"),
+    
 
     # pages
     path("settings/", views.settings_page, name="account"),
@@ -62,6 +64,12 @@ urlpatterns = [
     path("api/me/password/", api.change_password),
 
     path("api/payments/failed/", payments.failed),
+
+    # Billing
+
+    path("api/me/billing/", api.billing),
+    path("api/me/slots/", api.my_slots),
+    path("api/me/payments/", api.my_payments),
 
     # Password change
 

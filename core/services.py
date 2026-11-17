@@ -213,3 +213,9 @@ def mask_email(email):
     local, domain = email.rsplit("@", 1)
     keep = min(5, max(1, len(local) - 3))
     return f"{local[:keep]}***@{domain}"
+
+
+
+def current_subscription(user):
+    """Latest plan purchase (active or expired), or None = free Starter."""
+    return Subscription.objects.filter(user=user).select_related("plan").order_by("-expires_at").first()

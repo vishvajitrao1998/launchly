@@ -486,3 +486,20 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border: 0; border-radius: 10px; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; transition: color .2s, background .2s; }
 .pw-toggle:hover { color: var(--text); background: var(--surface-2); }
 .pw-toggle .i { width: 19px; height: 19px; }
+
+.col-980 { max-width: 980px; }
+.plan-sum { padding: 26px; display: grid; gap: 22px; }
+.plan-sum.empty-plan { text-align: center; justify-items: center; }
+.plan-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.fact { padding: 14px 16px; border-radius: 14px; background: var(--surface-2); display: grid; gap: 2px; }
+.fact small { color: var(--muted); font-weight: 600; }
+.fact b { font-family: var(--font-display); font-size: 1.15rem; letter-spacing: -.02em; }
+.meter-head { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600; color: var(--muted); }
+.meter-head b { color: var(--text); }
+.meter { height: 10px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 99px; background: var(--grad); transition: width .9s var(--ease); }
+.notice { padding: 12px 16px; border-radius: 12px; background: color-mix(in srgb, var(--warn) 13%, transparent); }
+.feat { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 20px; }
+.feat li { display: flex; gap: 8px; align-items: flex-start; color: var(--muted); }
+.feat .i { color: var(--ok); width: 18px; margin-top: 2px; }
