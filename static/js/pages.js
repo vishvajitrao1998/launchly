@@ -617,7 +617,7 @@
       <p class="muted">See how many people view your product, click through to your website, and upvote or like it.</p>
       <ul class="feat" style="text-align:left"><li><svg class="i"><use href="#i-check"/></svg><span>Views and website clicks per day</span></li>
         <li><svg class="i"><use href="#i-check"/></svg><span>Upvote and like trends</span></li>
-        <li><svg class="i"><use href="#i-check"/></svg><span>Click-through rate and top products</span></li>
+        <li><svg class="i"><use href="#i-check"/></svg><span>Click-through rate and top Products</span></li>
         <li><svg class="i"><use href="#i-check"/></svg><span>Comparison with the previous period</span></li></ul>
       <a class="btn btn-primary btn-lg" href="/pricing/">Upgrade to Scale</a></div>`;
 
@@ -635,7 +635,7 @@
       const line = (label, data, color) => ({ label, data, borderColor: color, backgroundColor: color + '22', fill: true, tension: .35, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5 });
       const bar = (label, data, color) => ({ label, data, backgroundColor: color, borderRadius: 5, maxBarThickness: 18 });
       charts.push(new Chart($('#chViews'), { type: 'line', options: opts,
-        data: { labels, datasets: [line('Page views', d.series.views, css('--primary')), line('Website clicks', d.series.clicks, '#f5a524')] } }));
+        data: { labels, datasets: [line('Page Views', d.series.views, css('--primary')), line('Website Clicks', d.series.clicks, '#f5a524')] } }));
       charts.push(new Chart($('#chVotes'), { type: 'bar', options: opts,
         data: { labels, datasets: [bar('Upvotes', d.series.upvotes, '#0f9d8a'), bar('Likes', d.series.likes, '#c2418f')] } }));
     }
@@ -648,20 +648,20 @@
         filled = true;
       }
       const t = d.totals, ctr = ctrOf(t.clicks.value, t.views.value), pctr = ctrOf(t.clicks.prev, t.views.prev);
-      const cards = [['Page views', num(t.views.value), delta(t.views.value, t.views.prev)],
-        ['Website clicks', num(t.clicks.value), delta(t.clicks.value, t.clicks.prev)],
-        ['Click-through rate', ctr.toFixed(1) + '%', delta(Math.round(ctr * 10), Math.round(pctr * 10))],
+      const cards = [['Page Views', num(t.views.value), delta(t.views.value, t.views.prev)],
+        ['Website Clicks', num(t.clicks.value), delta(t.clicks.value, t.clicks.prev)],
+        ['Click-through Rate', ctr.toFixed(1) + '%', delta(Math.round(ctr * 10), Math.round(pctr * 10))],
         ['Upvotes', num(t.upvotes.value), delta(t.upvotes.value, t.upvotes.prev)],
         ['Likes', num(t.likes.value), delta(t.likes.value, t.likes.prev)]];
       const empty = !t.views.value && !t.clicks.value;
       body.innerHTML = `
         <div class="kpis">${cards.map(([l, v, [dt, dc]], i) => `<div class="kpi reveal" style="--i:${i}"><small>${l}</small><b>${v}</b><span class="delta ${dc}">${dt}</span><em>vs previous ${d.days} days</em></div>`).join('')}</div>
-        ${empty ? '<div class="notice" style="margin-top:16px">No views or clicks yet in this period. They are counted when people open your product page and click “Visit website”.</div>' : ''}
+        ${empty ? '<div class="notice" style="margin-top:16px">No views or clicks yet in this period. They are counted when people open your product page and click “Visit.</div>' : ''}
         <div class="chart-grid">
-          <div class="card chart-card"><h3>Views &amp; clicks</h3><div class="chart-box"><canvas id="chViews"></canvas></div></div>
-          <div class="card chart-card"><h3>Upvotes &amp; likes</h3><div class="chart-box"><canvas id="chVotes"></canvas></div></div>
+          <div class="card chart-card"><h3>Views &amp; Clicks</h3><div class="chart-box"><canvas id="chViews"></canvas></div></div>
+          <div class="card chart-card"><h3>Upvotes &amp; Likes</h3><div class="chart-box"><canvas id="chVotes"></canvas></div></div>
         </div>
-        <section class="block"><div class="block-head"><h2>Top products</h2></div>
+        <section class="block"><div class="block-head"><h2>Top Products</h2></div>
           <div class="card tbl-wrap"><table class="tbl"><thead><tr><th>Product</th><th>Views</th><th>Clicks</th><th>CTR</th><th>Upvotes</th><th>Likes</th></tr></thead><tbody>
           ${d.top.length ? d.top.map(p => `<tr><td><a class="name" href="/product/${esc(p.slug)}/">${esc(p.name)}</a></td><td>${num(p.views)}</td><td>${num(p.clicks)}</td><td>${p.ctr}%</td><td>${num(p.upvotes)}</td><td>${num(p.likes)}</td></tr>`).join('')
             : '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No products yet.</td></tr>'}

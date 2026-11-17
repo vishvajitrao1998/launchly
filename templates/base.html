@@ -59,7 +59,7 @@
     <a href="{% url 'top' %}" class="nav-link" data-nav="top" title="Leaderboard"><svg class="i"><use href="#i-trophy"/></svg><span class="label">Leaderboard</span></a>
     
     <a href="{% url 'submit' %}" class="nav-link" data-nav="submit" title="Launch a product"><svg class="i"><use href="#i-rocket"/></svg><span class="label">Launch a Product</span></a>
-    <a href="{% url 'pricing' %}" class="nav-link" data-nav="pricing" title="Pricing"><svg class="i"><use href="#i-tag"/></svg><span class="label">Pricing</span></a>
+    
     <a href="{% url 'advertise' %}" class="nav-link" data-nav="advertise" title="Advertise"><svg class="i"><use href="#i-mega"/></svg><span class="label">Advertise</span></a>
     {% if user.is_authenticated %}
     <a href="{% url 'dashboard' %}" class="nav-link" data-nav="dashboard" title="My Dashboard"><svg class="i"><use href="#i-grid"/></svg><span class="label">My Launches & Booking</span></a>
@@ -67,10 +67,13 @@
     {% if user.is_staff %}
     <a href="{% url 'review' %}" class="nav-link" data-nav="review" title="Review queue"><svg class="i"><use href="#i-shield"/></svg><span class="label">Review Queue</span></a>
     {% endif %}
+    {% if user.is_authenticated %}
     <a href="{% url 'analytics' %}" class="nav-link" data-nav="analytics" title="Analytics"><svg class="i"><use href="#i-chart"/></svg><span class="label">Analytics</span></a>
+    {% endif %}
   </nav>
    <div class="sb-foot">
     {% if user.is_authenticated %}
+    <a href="{% url 'pricing' %}" class="nav-link" data-nav="pricing" title="Pricing"><svg class="i"><use href="#i-tag"/></svg><span class="label">Pricing</span></a>
     <a href="{% url 'billing' %}" class="nav-link" data-nav="billing" title="Billing"><svg class="i"><use href="#i-card"/></svg><span class="label">Billing</span></a>
     <a href="{% url 'account' %}" class="nav-link" data-nav="settings" title="Settings"><svg class="i"><use href="#i-settings"/></svg><span class="label">Settings</span></a>
     <div class="me" title="{{ display_name }}{% if masked_email %} · {{ masked_email }}{% endif %}">
