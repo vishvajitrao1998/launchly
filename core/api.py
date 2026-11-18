@@ -2,7 +2,7 @@
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Q, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import serializers
@@ -24,7 +24,7 @@ from rest_framework.throttling import AnonRateThrottle
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-
+from django.utils.dateparse import parse_date
 
 def paginate(request, qs, fn, size=12):
     try:
@@ -572,11 +572,11 @@ def track(request, pk):
 def analytics(request):
     if not services.has_analytics(request.user):
         return Response({"locked": True})
-    try:
-        days = int(request.GET.get("days", 30))
-    except ValueError:
-        days = 30
-    days = days if days in (7, 30, 90) else 30
+
+    start, end = _revenue_range(request)          # custom ?start=&end= or preset ?days=
+    days = (end - start).days + 1
+    prev_start = start - timedelta(days=days)
+    end_excl = services._aware(end + timedelta(days=1))
 
     mine = Product.objects.filter(owner=request.user)
     options = [{"id": p.id, "name": p.name} for p in mine.order_by("name")]
@@ -584,9 +584,6 @@ def analytics(request):
     prods = list(mine.filter(pk=pid) if pid.isdigit() else mine)
     ids = [p.id for p in prods]
 
-    today = timezone.localdate()
-    start = today - timedelta(days=days - 1)
-    prev_start = start - timedelta(days=days)
     labels = [start + timedelta(days=i) for i in range(days)]
     idx = {d: i for i, d in enumerate(labels)}
     keys = ("views", "clicks", "upvotes", "likes")
@@ -594,7 +591,7 @@ def analytics(request):
     per = {i: dict.fromkeys(keys, 0) for i in ids}
     prev = dict.fromkeys(keys, 0)
 
-    for s in ProductStat.objects.filter(product_id__in=ids, day__gte=prev_start, day__lte=today).values("product_id", "day", "views", "clicks"):
+    for s in ProductStat.objects.filter(product_id__in=ids, day__gte=prev_start, day__lte=end).values("product_id", "day", "views", "clicks"):
         for k in ("views", "clicks"):
             if s["day"] >= start:
                 series[k][idx[s["day"]]] += s[k]
@@ -605,7 +602,7 @@ def analytics(request):
     lo = services._aware(prev_start)
     for model, key in ((Upvote, "upvotes"), (Like, "likes")):
         # bucketed in Python so it also works on MySQL without timezone tables
-        for p_id, created in model.objects.filter(product_id__in=ids, created_at__gte=lo).values_list("product_id", "created_at"):
+        for p_id, created in model.objects.filter(product_id__in=ids, created_at__gte=lo, created_at__lt=end_excl).values_list("product_id", "created_at"):
             d = timezone.localtime(created).date()
             if d >= start:
                 series[key][idx[d]] += 1
@@ -620,5 +617,102 @@ def analytics(request):
         top.append({"id": p.id, "name": p.name, "slug": p.slug, **r,
                     "ctr": round(r["clicks"] / r["views"] * 100, 1) if r["views"] else 0})
     top.sort(key=lambda x: (-x["views"], -x["upvotes"]))
-    return Response({"locked": False, "days": days, "products": options, "totals": totals,
+    return Response({"locked": False, "days": days, "start": start.isoformat(), "end": end.isoformat(),
+                     "products": options, "totals": totals,
                      "series": {"labels": [d.isoformat() for d in labels], **series}, "top": top[:10]})
+
+# ------------------------------------------------------- admin revenue ---
+CURRENCIES = ("INR", "USD")
+
+
+def _revenue_range(request):
+    """Custom ?start=&end= (max 366 days) or a preset ?days=7|30|90|365. Returns (start, end) dates."""
+    today = timezone.localdate()
+    try:
+        s, e = parse_date(request.GET.get("start") or ""), parse_date(request.GET.get("end") or "")
+    except ValueError:
+        s = e = None
+    if s and e:
+        e = min(e, today)
+        s = min(max(s, e - timedelta(days=365)), e)
+        return s, e
+    try:
+        days = int(request.GET.get("days", 30))
+    except ValueError:
+        days = 30
+    days = days if days in (7, 30, 90, 365) else 30
+    return today - timedelta(days=days - 1), today
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_revenue(request):
+    start, end = _revenue_range(request)
+    n = (end - start).days + 1
+    prev_start = start - timedelta(days=n)
+    end_excl = services._aware(end + timedelta(days=1))
+    labels = [start + timedelta(days=i) for i in range(n)]
+    idx = {d: i for i, d in enumerate(labels)}
+    out = {c: {"total": 0, "prev": 0, "plan": 0, "ad": 0, "count": 0, "failed": 0, "alltime": 0,
+               "series": {"plan": [0] * n, "ad": [0] * n}, "items": {}} for c in CURRENCIES}
+
+    rows = (Payment.objects.filter(status="paid", currency__in=CURRENCIES,
+                                   paid_at__gte=services._aware(prev_start), paid_at__lt=end_excl)
+            .values_list("currency", "kind", "amount", "paid_at", "plan__name", "ad_slot__slot_type"))
+    for cur, kind, amt, at, plan_name, slot_type in rows:   # bucketed in Python: works on MySQL without timezone tables
+        d, o = timezone.localtime(at).date(), out[cur]
+        if d < start:
+            o["prev"] += amt
+            continue
+        if d not in idx:
+            continue
+        o["total"] += amt
+        o[kind] += amt
+        o["count"] += 1
+        o["series"][kind][idx[d]] += amt
+        label = (f"{plan_name} plan" if kind == "plan" and plan_name
+                 else services.SLOT_INFO.get(slot_type, ("Ad slot",))[0] if kind == "ad" else kind)
+        it = o["items"].setdefault((kind, label), {"amount": 0, "count": 0})
+        it["amount"] += amt
+        it["count"] += 1
+
+    for r in Payment.objects.filter(status="paid", currency__in=CURRENCIES).values("currency").annotate(t=Sum("amount")):
+        out[r["currency"]]["alltime"] = r["t"] or 0
+    for r in (Payment.objects.filter(status="failed", currency__in=CURRENCIES,
+                                     created_at__gte=services._aware(start), created_at__lt=end_excl)
+              .values("currency").annotate(n=Count("id"))):
+        out[r["currency"]]["failed"] = r["n"]
+
+    for o in out.values():
+        o["items"] = sorted(({"kind": k, "label": l, **v} for (k, l), v in o["items"].items()),
+                            key=lambda x: -x["amount"])
+    return Response({"days": n, "start": start.isoformat(), "end": end.isoformat(),
+                     "labels": [d.isoformat() for d in labels], "currencies": out})
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_payments(request):
+    start, end = _revenue_range(request)
+    lo, hi = services._aware(start), services._aware(end + timedelta(days=1))
+    qs = (Payment.objects.select_related("user", "plan", "ad_slot__product")
+          .filter(Q(paid_at__gte=lo, paid_at__lt=hi) | Q(paid_at__isnull=True, created_at__gte=lo, created_at__lt=hi))
+          .order_by("-created_at"))
+    st = request.GET.get("status", "paid")
+    if st in ("paid", "failed"):
+        qs = qs.filter(status=st)
+    cur = request.GET.get("currency", "").upper()
+    if cur in CURRENCIES:
+        qs = qs.filter(currency=cur)
+
+    def row(x):
+        if x.plan:
+            what = f"{x.plan.name} plan"
+        elif x.ad_slot:
+            what = f"{services.SLOT_INFO.get(x.ad_slot.slot_type, ('Ad slot',))[0]} · {x.ad_slot.product.name}"
+        else:
+            what = x.get_kind_display()
+        return {"user": x.user.username, "email": x.user.email, "what": what, "amount": x.amount,
+                "currency": x.currency, "status": x.status, "date": x.paid_at or x.created_at,
+                "ref": x.razorpay_payment_id or x.razorpay_order_id}
+    return Response(paginate(request, qs, row, size=10))

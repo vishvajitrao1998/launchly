@@ -23,7 +23,7 @@ urlpatterns = [
     path("category/<slug:slug>/", views.category_page, name="category"),
     path("billing/", views.billing_page, name="billing"),
     path("analytics/", views.analytics_page, name="analytics"),
-    
+    path("revenue/", views.revenue_page, name="revenue"),
 
     # pages
     path("settings/", views.settings_page, name="account"),
@@ -74,6 +74,10 @@ urlpatterns = [
 
     path("api/products/<int:pk>/track/", api.track),
     path("api/me/analytics/", api.analytics),
+
+    # revenue analtics
+    path("api/admin/revenue/", api.admin_revenue),
+    path("api/admin/payments/", api.admin_payments),
 
     # Password change
 

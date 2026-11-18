@@ -602,7 +602,9 @@
     /* ======================= ANALYTICS (Scale plan) ======================= */
   pages.analytics = async () => {
     const body = $('#anBody'), sel = $('#anProduct');
-    let days = 30, product = '', last = null, charts = [], filled = false;
+    let days = 30, custom = null, product = '', last = null, charts = [], filled = false;
+    const qs = () => (custom ? `start=${custom.start}&end=${custom.end}` : `days=${days}`);
+    const longDay = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
     const num = n => Number(n).toLocaleString('en-IN');
     const ctrOf = (c, v) => (v ? (c / v) * 100 : 0);
@@ -655,6 +657,7 @@
         ['Likes', num(t.likes.value), delta(t.likes.value, t.likes.prev)]];
       const empty = !t.views.value && !t.clicks.value;
       body.innerHTML = `
+        <p class="muted" style="margin-bottom:14px">Showing <b>${longDay(d.start)}</b> to <b>${longDay(d.end)}</b> (${d.days} day${d.days === 1 ? '' : 's'})</p>
         <div class="kpis">${cards.map(([l, v, [dt, dc]], i) => `<div class="kpi reveal" style="--i:${i}"><small>${l}</small><b>${v}</b><span class="delta ${dc}">${dt}</span><em>vs previous ${d.days} days</em></div>`).join('')}</div>
         ${empty ? '<div class="notice" style="margin-top:16px">No views or clicks yet in this period. They are counted when people open your product page and click “Visit.</div>' : ''}
         <div class="chart-grid">
@@ -669,16 +672,145 @@
       drawCharts(d);
     }
 
-    async function load() { last = await api(`/api/me/analytics/?days=${days}&product=${product}`); render(last); }
+    async function load() { last = await api(`/api/me/analytics/?${qs()}&product=${product}`); render(last); }
 
     $('#rangeTabs').addEventListener('click', e => {
-      const b = e.target.closest('[data-days]'); if (!b) return;
-      days = +b.dataset.days; $$('#rangeTabs .tab').forEach(t => t.classList.toggle('on', t === b)); load();
+      const b = e.target.closest('.tab'); if (!b) return;
+      $$('#rangeTabs .tab').forEach(t => t.classList.toggle('on', t === b));
+      if (b.dataset.custom !== undefined) {              // show the pickers and wait for Apply
+        const today = new Date().toLocaleDateString('en-CA');
+        if (!$('#toDate').value) {
+          $('#toDate').value = today;
+          $('#fromDate').value = new Date(Date.now() - 29 * 864e5).toLocaleDateString('en-CA');
+        }
+        $('#toDate').max = today; $('#fromDate').max = today;
+        $('#customRange').hidden = false; return;
+      }
+      $('#customRange').hidden = true; custom = null; days = +b.dataset.days; load();
     });
+    $('#applyRange').onclick = () => {
+      const s = $('#fromDate').value, t = $('#toDate').value;
+      if (!s || !t) return toast('Pick both dates', 'bad');
+      if (s > t) return toast('The start date must be before the end date', 'bad');
+      custom = { start: s, end: t }; load();
+    };
     sel.addEventListener('change', () => { product = sel.value; load(); });
     // re-colour the charts when the theme is toggled
     new MutationObserver(() => last && !last.locked && drawCharts(last)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     await load();
+  };
+
+    /* ======================= REVENUE (staff) ======================= */
+  pages.revenue = async () => {
+    const fm = (n, c) => new Intl.NumberFormat(c === 'USD' ? 'en-US' : 'en-IN', { style: 'currency', currency: c, maximumFractionDigits: 0 }).format(n);
+    const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const delta = (v, p) => {
+      if (!p) return v ? ['New', 'up'] : ['No change', ''];
+      const pct = Math.round(((v - p) / p) * 100);
+      return pct === 0 ? ['No change', ''] : [`${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}%`, pct > 0 ? 'up' : 'down'];
+    };
+    const META = { INR: ['₹', 'Indian Rupee'], USD: ['$', 'US Dollar'] };
+    let days = 30, custom = null, last = null, charts = [], cur = '', status = 'paid';
+    const qs = () => (custom ? `start=${custom.start}&end=${custom.end}` : `days=${days}`);
+    const longDay = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    const refresh = () => Promise.all([loadSummary(), loadPayments(1)]);
+
+    function drawCharts(d) {
+      charts.forEach(c => c.destroy()); charts = [];
+      const grid = css('--border'), txt = css('--muted'), labels = d.labels.map(l => fmtDate(l));
+      Object.entries(d.currencies).forEach(([c, o]) => {
+        const el = $('#chRev-' + c); if (!el) return;
+        charts.push(new Chart(el, {
+          type: 'bar',
+          data: { labels, datasets: [
+            { label: 'Plans', data: o.series.plan, backgroundColor: css('--primary'), borderRadius: 4, maxBarThickness: 18 },
+            { label: 'Ad slots', data: o.series.ad, backgroundColor: '#f5a524', borderRadius: 4, maxBarThickness: 18 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: txt, usePointStyle: true, boxWidth: 8 } },
+                       tooltip: { callbacks: { label: x => `${x.dataset.label}: ${fm(x.parsed.y, c)}` } } },
+            scales: { x: { stacked: true, grid: { display: false }, ticks: { color: txt, maxTicksLimit: 8 } },
+                      y: { stacked: true, beginAtZero: true, grid: { color: grid }, ticks: { color: txt, callback: v => fm(v, c) } } },
+          },
+        }));
+      });
+    }
+
+    function section(c, o, d) {
+      const [sym, name] = META[c];
+      const [dt, dc] = delta(o.total, o.prev);
+      const cards = [
+        ['Revenue', fm(o.total, c), `<span class="delta ${dc}">${dt}</span><em>vs previous ${d.days} days</em>`],
+        ['All-time Revenue', fm(o.alltime, c), '<em>since launch</em>'],
+        ['Payments', o.count, '<em>successful</em>'],
+        ['Plans', fm(o.plan, c), `<em>${o.total ? Math.round((o.plan / o.total) * 100) : 0}% of Revenue</em>`],
+        ['Ad Slots', fm(o.ad, c), `<em>${o.total ? Math.round((o.ad / o.total) * 100) : 0}% of Revenue</em>`],
+        ['Failed Payments', o.failed, '<em>in this Period</em>']];
+      return `<section class="block rev-sec">
+        <div class="block-head"><h2><span class="cur-chip">${sym}</span> ${name} · ${c}</h2></div>
+        <div class="kpis">${cards.map(([l, v, sub], i) => `<div class="kpi reveal" style="--i:${i}"><small>${l}</small><b>${v}</b>${sub}</div>`).join('')}</div>
+        ${o.count ? '' : '<div class="notice" style="margin-top:14px">No successful payments in this currency during this period.</div>'}
+        <div class="chart-grid">
+          <div class="card chart-card"><h3>Daily Revenue</h3><div class="chart-box"><canvas id="chRev-${c}"></canvas></div></div>
+          <div class="card chart-card"><h3>Where it comes from</h3>
+            ${o.items.length ? `<div class="brk-list">${o.items.map(it => `<div class="brk">
+              <div class="brk-top"><span>${esc(it.label)} <small class="muted">× ${it.count}</small></span><b>${fm(it.amount, c)}</b></div>
+              <div class="meter"><i class="${it.kind === 'ad' ? 'amber' : ''}" style="width:${o.total ? Math.round((it.amount / o.total) * 100) : 0}%"></i></div></div>`).join('')}</div>`
+              : '<p class="muted">Nothing yet.</p>'}
+          </div>
+        </div></section>`;
+    }
+
+    function render(d) {
+      $('#revBody').innerHTML = `<p class="muted" style="margin-bottom:14px">Showing <b>${longDay(d.start)}</b> to <b>${longDay(d.end)}</b> (${d.days} day${d.days === 1 ? '' : 's'})</p>`
+        + Object.entries(d.currencies).map(([c, o]) => section(c, o, d)).join('');
+      drawCharts(d);
+    }
+
+    async function loadSummary() { last = await api(`/api/admin/revenue/?${qs()}`); render(last); }
+
+    async function loadPayments(n = 1) {
+      const d = await api(`/api/admin/payments/?currency=${cur}&status=${status}&${qs()}&page=${n}`);
+      $('#payRows').innerHTML = d.results.length ? d.results.map(x => `<tr>
+        <td>${fmtDate(x.date, true)}</td>
+        <td>${esc(x.user)}<br><small class="muted">${esc(x.email || '')}</small></td>
+        <td>${esc(x.what)}</td><td><b>${fm(x.amount, x.currency)}</b></td>
+        <td><span class="badge ${x.status === 'paid' ? 'st-active' : 'st-rejected'}">${x.status === 'paid' ? 'Paid' : 'Failed'}</span></td>
+        <td class="muted">${esc(x.ref || '')}</td></tr>`).join('')
+        : '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No payments found.</td></tr>';
+      pager($('#payPager'), d, loadPayments);
+    }
+
+        $('#rangeTabs').addEventListener('click', e => {
+      const b = e.target.closest('.tab'); if (!b) return;
+      $$('#rangeTabs .tab').forEach(t => t.classList.toggle('on', t === b));
+      if (b.dataset.custom !== undefined) {              // show the date pickers and wait for Apply
+        const box = $('#customRange'), today = new Date().toLocaleDateString('en-CA');
+        if (!$('#toDate').value) {
+          $('#toDate').value = today;
+          $('#fromDate').value = new Date(Date.now() - 29 * 864e5).toLocaleDateString('en-CA');
+        }
+        $('#toDate').max = today; $('#fromDate').max = today;
+        box.hidden = false; return;
+      }
+      $('#customRange').hidden = true; custom = null; days = +b.dataset.days; refresh();
+    });
+    $('#applyRange').onclick = () => {
+      const s = $('#fromDate').value, t = $('#toDate').value;
+      if (!s || !t) return toast('Pick both dates', 'bad');
+      if (s > t) return toast('The start date must be before the end date', 'bad');
+      custom = { start: s, end: t }; refresh();
+    };
+    $('#curTabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-cur]'); if (!b) return;
+      cur = b.dataset.cur; $$('#curTabs .tab').forEach(t => t.classList.toggle('on', t === b)); loadPayments(1);
+    });
+    $('#statusTabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-st]'); if (!b) return;
+      status = b.dataset.st; $$('#statusTabs .tab').forEach(t => t.classList.toggle('on', t === b)); loadPayments(1);
+    });
+    new MutationObserver(() => last && drawCharts(last)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    await Promise.all([loadSummary(), loadPayments(1)]);
   };
 
   const run = pages[document.body.dataset.page];

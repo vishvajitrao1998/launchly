@@ -3,7 +3,7 @@
 {% block title %}Log in · LetsPublic{% endblock %}
 {% block content %}
 <div class="auth card">
-  <h1>Login</h1>
+  <h2>Login</h2>
   <p class="muted">Log in to launch, upvote and manage your products.</p>
   <form method="post" class="form-card flat">{% csrf_token %}
     <input type="hidden" name="next" value="{{ next }}">

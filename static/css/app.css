@@ -527,3 +527,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .tbl tr:last-child td { border-bottom: 0; }
 .locked { padding: 40px 28px; text-align: center; display: grid; gap: 14px; justify-items: center; max-width: 620px; margin: 20px auto; }
 @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+
+
+.rev-sec { margin-top: 36px; }
+.rev-sec:first-child { margin-top: 0; }
+.cur-chip { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-right: 6px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); font-size: 1.05rem; }
+.brk-list { display: grid; gap: 14px; }
+.brk-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-weight: 600; }
+.brk .meter { height: 8px; }
+.meter i.amber { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.tbl.left th, .tbl.left td { text-align: left; }
+.tbl.left td { white-space: normal; }
+
+.custom-range { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin: -6px 0 22px; animation: rise .35s var(--ease); }
+.custom-range .field { min-width: 180px; }
+.custom-range input { width: auto; }
+.custom-range .btn { height: 46px; }
