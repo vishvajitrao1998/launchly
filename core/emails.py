@@ -127,3 +127,15 @@ def password_changed(user):
         details=[("Username", user.username), ("When", f"{timezone.localtime():%d %b %Y, %I:%M %p}")],
         cta=("Go to settings", url("/settings/")),
         outro=f"If this wasn't you, reset your password straight away and write to {settings.CONTACT_EMAIL}.")
+
+
+def verify_email(user, link):
+    name = services.display_name(user)
+    send_notification(
+        user.email, "Verify your LetsPublic email", "Confirm your email address",
+        f"Hi {name}, thanks for joining LetsPublic. Confirm your email to activate your account. "
+        f"This link works for {settings.EMAIL_VERIFY_HOURS} hours.",
+        details=[("Username", user.username)],
+        cta=("Verify my email", link),
+        outro="Didn't create an account? Ignore this email and nothing happens.\n\n"
+              "Button not working? Copy this link into your browser:\n" + link)

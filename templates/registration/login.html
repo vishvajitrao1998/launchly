@@ -10,6 +10,7 @@
   <form method="post" class="form-card flat">{% csrf_token %}
     <input type="hidden" name="next" value="{{ next }}">
     {% if form.non_field_errors %}<em class="err show">{{ form.non_field_errors.0 }}</em>{% endif %}
+    {% if form.unverified %}<a class="link" href="{% url 'verify_sent' %}" style="margin:-6px 0 4px;display:inline-block">Resend verification email</a>{% endif %}
     <label class="field"><span>Username</span>{{ form.username }}</label>
     <label class="field"><span>Password</span>{{ form.password }}</label>
     <a class="link" href="{% url 'password_reset' %}" style="justify-self:end;margin-top:-10px;font-size:.9rem">Forgot password?</a>

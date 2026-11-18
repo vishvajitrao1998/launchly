@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm, UserCreationForm, AuthenticationForm
 from django.urls import reverse
 
-from . import emails
+from . import emails, services
 
 
 class SignupForm(UserCreationForm):
@@ -44,11 +44,25 @@ class ResetSetForm(SetPasswordForm):
     def save(self, commit=True):
         user = super().save(commit)
         if commit:
+            services.mark_verified(user)      # they proved they own the email by using the reset link
             emails.password_changed(user)
         return user
 
 
 class LoginForm(AuthenticationForm):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.unverified = False
+
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)          # keeps the is_active check
+        if not services.is_verified(user):
+            self.unverified = True
+            self.request.session["verify_email"] = user.email
+            raise forms.ValidationError(
+                "Please verify your email address first. We sent you a link when you signed up.", code="unverified")
+        
     def clean(self):
         username = self.cleaned_data.get("username")
         if username:

@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
 from django.core.cache import cache
-from . import emails
+from . import emails, services
 from .models import Profile
 
 User = get_user_model()
@@ -66,6 +66,9 @@ def google_callback(request):
     else:
         user = User.objects.filter(email__iexact=email).first()
         if user:                                             # same verified email -> link
+            if not services.is_verified(user):               # someone may have pre-registered this email: kill their password
+                user.set_unusable_password()
+                user.save(update_fields=["password"])
             profile, _ = Profile.objects.get_or_create(user=user)
             if profile.google_id and profile.google_id != sub:
                 messages.error(request, "This email is already linked to a different Google account.")
@@ -80,6 +83,7 @@ def google_callback(request):
             created = True
 
     if not user.is_active:
+        services.mark_verified(user)                             # Google already verified this email
         messages.error(request, "This account has been disabled.")
         return redirect("login")
 

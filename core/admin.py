@@ -4,7 +4,16 @@ from . import services
 from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote, ProductScreenshot, Profile,ProductStat
 
 
-admin.site.register(Profile)
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "display_name", "email_verified", "google_id")
+    list_filter = ("email_verified",)
+    search_fields = ("user__username", "user__email")
+    actions = ["mark_verified"]
+
+    @admin.action(description="✅ Mark email as verified")
+    def mark_verified(self, request, qs):
+        qs.update(email_verified=True)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):

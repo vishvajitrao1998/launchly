@@ -27,6 +27,10 @@ urlpatterns = [
     path("analytics/", views.analytics_page, name="analytics"),
     path("revenue/", views.revenue_page, name="revenue"),
 
+    path("verify/sent/", views.verify_sent, name="verify_sent"),
+    path("verify/resend/", views.resend_verification, name="verify_resend"),
+    path("verify/<str:token>/", views.verify_email, name="verify_email"),
+
     # pages
     path("settings/", views.settings_page, name="account"),
     path("p/about/", TemplateView.as_view(template_name="pages/about.html"), name="about"),

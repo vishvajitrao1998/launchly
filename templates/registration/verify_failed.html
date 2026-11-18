@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block page %}login{% endblock %}
+{% block title %}Link Expired · LetsPublics{% endblock %}
+{% block content %}
+<div class="auth card" style="text-align:center">
+  <div style="font-size:2.6rem">⏳</div>
+  <h1>This link has expired</h1>
+  <p class="muted">Verification links work for 24 hours. Enter your email and we'll send a fresh one.</p>
+  <form method="post" action="{% url 'verify_resend' %}" class="form-card flat" style="text-align:left">{% csrf_token %}
+    <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email"></label>
+    <button class="btn btn-primary btn-lg" type="submit">Send a new link</button>
+  </form>
+</div>
+{% endblock %}

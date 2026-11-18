@@ -7,7 +7,11 @@ from django.db import transaction
 from django.db.models import F, Sum
 from django.utils import timezone
 from datetime import date, datetime, time, timedelta
-from .models import AdSlot, Category, Payment, Product, Subscription
+from .models import AdSlot, Category, Payment, Product, Subscription, Profile
+
+from django.core import signing
+from django.core.cache import cache
+from django.urls import reverse
 
 SLOT_INFO = {
     "hero": ("Hero Banner", "The big banner at the very top of Home. One advertiser at a time."),
@@ -224,3 +228,45 @@ def current_subscription(user):
 def has_analytics(user):
     """True while the user holds an unexpired plan that includes analytics (Scale)."""
     return _live_subs(user).filter(plan__has_analytics=True).exists()
+
+
+# ------------------------------------------------------ email verification ---
+SALT = "email-verify"
+
+
+def is_verified(user):
+    if user.is_staff or user.is_superuser:
+        return True
+    p = getattr(user, "profile", None)
+    return bool(p and (p.email_verified or p.google_id))
+
+
+def mark_verified(user):
+    """True only the first time (so the welcome email is sent once)."""
+    prof, _ = Profile.objects.get_or_create(user=user)
+    if prof.email_verified:
+        return False
+    prof.email_verified = True
+    prof.save(update_fields=["email_verified"])
+    return True
+
+
+def send_verification(user):
+    """False if a link was already sent in the last minute (stops spamming an inbox)."""
+    from . import emails
+    if not cache.add(f"verify-sent:{user.pk}", 1, 60):
+        return False
+    token = signing.dumps({"uid": user.pk, "email": user.email.lower()}, salt=SALT)
+    link = settings.SITE_URL.rstrip("/") + reverse("verify_email", args=[token])
+    emails.verify_email(user, link)
+    return True
+
+
+def read_verify_token(token):
+    from django.contrib.auth import get_user_model
+    try:
+        data = signing.loads(token, salt=SALT, max_age=settings.EMAIL_VERIFY_HOURS * 3600)
+    except signing.BadSignature:      # also covers expired links
+        return None
+    user = get_user_model().objects.filter(pk=data.get("uid")).first()
+    return user if user and user.email.lower() == data.get("email") else None   # link dies if the email changed

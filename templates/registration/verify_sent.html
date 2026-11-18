@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block page %}login{% endblock %}
+{% block title %}Verify your email · LetsPublic{% endblock %}
+{% block content %}
+<div class="auth card" style="text-align:center">
+  <div style="font-size:2.6rem">✉️</div>
+  <h2>Check Your Inbox</h2>
+  {% for m in messages %}<div class="callout warn" style="text-align:left">{{ m }}</div>{% endfor %}
+  {% if masked %}
+    <p class="muted">We sent a verification link to <b>{{ masked }}</b>. Click it to activate your account. It stays valid for 24 hours.</p>
+    <p class="muted" style="font-size:.9rem">Can't find it? Check your spam folder.</p>
+    <form method="post" action="{% url 'verify_resend' %}" class="form-card flat" style="margin:6px 0">{% csrf_token %}
+      <button class="btn btn-ghost" type="submit">Resend email</button>
+    </form>
+  {% else %}
+    <p class="muted">Enter your email and we'll send a new verification link if the account needs one.</p>
+    <form method="post" action="{% url 'verify_resend' %}" class="form-card flat" style="text-align:left">{% csrf_token %}
+      <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email"></label>
+      <button class="btn btn-primary btn-lg" type="submit">Send link</button>
+    </form>
+  {% endif %}
+  <a class="link" href="{% url 'login' %}">Back to log in</a>
+</div>
+{% endblock %}
