@@ -106,14 +106,18 @@ def payment_failed(payment, reason=""):
 
 
 def password_reset(user, to, link):
+    google_only = not user.has_usable_password()
     send_notification(
-        to, "Reset your LetsPublic password", "Reset your password",
-        f"We received a request to reset the password for {user.username}. "
-        "This link works for 1 hour and can be used only once.",
+        to,
+        "Set a Password for LetsPublic" if google_only else "Reset Your LetsPublic Password",
+        "Set a password" if google_only else "Reset your password",
+        (f"Your account ({user.username}) uses Google sign-in. Use this link to set a password, so you can also log in "
+         "with your username. It works for 1 hour and only once."
+         if google_only else
+         f"We received a request to reset the password for {user.username}. This link works for 1 hour and can be used only once."),
         details=[("Username", user.username)],
-        cta=("Choose a new password", link),
-        outro="Didn't ask for this? Ignore this email and your password stays the same.\n\n"
-              "Button not working? Copy this link into your browser:\n" + link)
+        cta=("Choose a password" if google_only else "Choose a new password", link),
+        outro="Didn't ask for this? Ignore this email and nothing changes.\n\nButton not working? Copy this link into your browser:\n" + link)
 
 
 def password_changed(user):

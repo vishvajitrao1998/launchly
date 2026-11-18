@@ -1,10 +1,10 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.views.generic import TemplateView
-from . import api, payments, views
+from . import api, payments, views, social
 
 from django.urls import path, reverse_lazy
-from .forms import ResetRequestForm, ResetSetForm
+from .forms import ResetRequestForm, ResetSetForm, LoginForm
 
 urlpatterns = [
     # pages
@@ -15,7 +15,9 @@ urlpatterns = [
     path("dashboard/", views.dashboard, name="dashboard"),
     path("review/", views.review, name="review"),
     path("product/<slug:slug>/", views.product_page, name="product"),
-    path("login/", auth_views.LoginView.as_view(), name="login"),
+    path("login/", auth_views.LoginView.as_view(authentication_form=LoginForm), name="login"),
+    path("auth/google/", social.google_login, name="google_login"),
+    path("auth/google/callback/", social.google_callback, name="google_callback"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("signup/", views.signup, name="signup"),
     path("top/", views.top_page, name="top"),

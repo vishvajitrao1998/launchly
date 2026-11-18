@@ -155,3 +155,6 @@ SOCIAL_LINKS = {   # leave a value empty to hide that icon
     "linkedin":  env("SOCIAL_LINKEDIN",  ""),
     "youtube":   env("SOCIAL_YOUTUBE",   ""),
 }
+
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET")

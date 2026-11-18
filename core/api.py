@@ -450,7 +450,8 @@ class ProfileForm(serializers.Serializer):
 
 def _profile_data(u, prof):
     return {"username": u.username, "email": u.email, "first_name": u.first_name,
-            "last_name": u.last_name, "display_name": prof.display_name}
+            "last_name": u.last_name, "display_name": prof.display_name,
+            "has_password": u.has_usable_password(), "google": bool(prof.google_id)}
 
 
 @api_view(["GET", "PATCH"])
@@ -476,7 +477,7 @@ def my_profile(request):
 def change_password(request):
     from . import emails
     u, d = request.user, request.data
-    if not u.check_password(d.get("current_password", "")):
+    if u.has_usable_password() and not u.check_password(d.get("current_password", "")):
         return Response({"current_password": ["Current password is incorrect."]}, status=400)
     new = d.get("new_password", "")
     if new != d.get("confirm_password"):

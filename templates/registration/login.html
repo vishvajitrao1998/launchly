@@ -5,13 +5,15 @@
 <div class="auth card">
   <h2>Login</h2>
   <p class="muted">Log in to launch, upvote and manage your products.</p>
+  {% for m in messages %}<div class="callout warn">{{ m }}</div>{% endfor %}
+  {% include "partials/google_btn.html" %}
   <form method="post" class="form-card flat">{% csrf_token %}
     <input type="hidden" name="next" value="{{ next }}">
     {% if form.non_field_errors %}<em class="err show">{{ form.non_field_errors.0 }}</em>{% endif %}
     <label class="field"><span>Username</span>{{ form.username }}</label>
     <label class="field"><span>Password</span>{{ form.password }}</label>
+    <a class="link" href="{% url 'password_reset' %}" style="justify-self:end;margin-top:-10px;font-size:.9rem">Forgot password?</a>
     <button class="btn btn-primary btn-lg" type="submit">Log in</button>
-  <a class="link" href="{% url 'password_reset' %}" style="justify-self:end;margin-top:-10px;font-size:.9rem">Forgot password?</a>
   </form>
   <p class="muted">New here? <a class="link" href="{% url 'signup' %}">Create an account</a></p>
 </div>

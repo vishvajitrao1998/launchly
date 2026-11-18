@@ -1,7 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm, UserCreationForm
+from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm, UserCreationForm, AuthenticationForm
 from django.urls import reverse
 
 from . import emails
@@ -31,6 +31,9 @@ class ResetRequestForm(PasswordResetForm):
             raise forms.ValidationError("No account found with this email address.")
         return email
 
+    def get_users(self, email):
+        return get_user_model()._default_manager.filter(email__iexact=email, is_active=True)
+
     def send_mail(self, subject_template_name, email_template_name, context,
                   from_email, to_email, html_email_template_name=None):
         path = reverse("password_reset_confirm", kwargs={"uidb64": context["uid"], "token": context["token"]})
@@ -43,3 +46,15 @@ class ResetSetForm(SetPasswordForm):
         if commit:
             emails.password_changed(user)
         return user
+
+
+class LoginForm(AuthenticationForm):
+    def clean(self):
+        username = self.cleaned_data.get("username")
+        if username:
+            u = get_user_model().objects.filter(username=username).first()
+            if u and not u.has_usable_password():
+                raise forms.ValidationError(
+                    "This account uses Google sign-in. Click “Continue with Google”, "
+                    "or use “Forgot password?” to set a password.", code="google_only")
+        return super().clean()

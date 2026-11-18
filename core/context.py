@@ -14,4 +14,5 @@ def site(request):
         "CONTACT_EMAIL": settings.CONTACT_EMAIL,
         "social_links": [{"key": k, "label": SOCIAL_LABELS[k], "url": v}
                          for k, v in settings.SOCIAL_LINKS.items() if v],
+        "google_enabled": bool(settings.GOOGLE_CLIENT_ID),
     }

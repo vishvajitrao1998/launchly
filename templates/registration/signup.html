@@ -5,6 +5,8 @@
 <div class="auth card">
   <h2>Create Your Account</h2>
   <p class="muted">Free forever for standard launches.</p>
+  {% for m in messages %}<div class="callout warn">{{ m }}</div>{% endfor %}
+  {% include "partials/google_btn.html" %}
   <form method="post" class="form-card flat">{% csrf_token %}
     {% for f in form %}
     <label class="field"><span>{{ f.label }}</span>{{ f }}

@@ -555,3 +555,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .soc-instagram:hover { background: linear-gradient(45deg, #f9ce34, #ee2a7b 55%, #6228d7); }
 .soc-linkedin:hover { background: #0a66c2; }
 .soc-youtube:hover { background: #ff0000; }
+
+
+.btn-google { background: #fff; color: #1f1f1f; border: 1px solid #dadce0; width: 100%; gap: 12px; }
+.btn-google:hover { background: #f8f9fa; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+[data-theme="dark"] .btn-google { background: #fff; color: #1f1f1f; }
+.g-ico { width: 20px; height: 20px; flex: none; }
+.or { display: flex; align-items: center; gap: 14px; color: var(--faint); font-size: .85rem; margin: 6px 0 2px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border); }

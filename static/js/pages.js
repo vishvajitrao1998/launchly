@@ -506,6 +506,13 @@
     const pf = $('#profileForm'), pw = $('#passwordForm');
     const p = await api('/api/me/profile/');
     ['username', 'email', 'first_name', 'last_name', 'display_name'].forEach(k => (pf.elements[k].value = p[k] || ''));
+    if (p.google) $('input[name=email]', pf).closest('.field').querySelector('span').insertAdjacentHTML('beforeend', '<small>Google ✓</small>');
+    if (!p.has_password) {                                   // Google-only account: "set" instead of "change"
+      pw.elements.current_password.closest('.field').hidden = true;
+      $('#pwTitle').textContent = 'Set a Password';
+      $('#pwHint').hidden = false;
+      $('button[type=submit]', pw).textContent = 'Set Password';
+    }
 
     pf.addEventListener('submit', async e => {
       e.preventDefault();
@@ -531,7 +538,8 @@
           current_password: pw.elements.current_password.value, new_password: pw.elements.new_password.value,
           confirm_password: pw.elements.confirm_password.value } });
         pw.reset(); showErrors(pw, { data: {}, message: '' }); $('.form-err', pw).classList.remove('show');
-        toast('Password Updated');
+        toast(p.has_password ? 'Password Updated' : 'Password set. You can now log in with it too.');
+        if (!p.has_password) setTimeout(() => location.reload(), 900);
         
       } catch (err) { showErrors(pw, err); }
       btn.disabled = false;

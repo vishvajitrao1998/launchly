@@ -3,7 +3,10 @@
 {% block title %}Settings · LetsPublic{% endblock %}
 {% block content %}
 <div class="narrow">
-  <section class="page-head center"><h1>Settings</h1><p class="muted">Manage your profile and password.</p></section>
+  <section class="page-head center">
+    <h1>Settings</h1>
+    <p class="muted">Manage your profile and password.</p>
+  </section>
 
   <form id="profileForm" class="card form-card" novalidate>
     <h3>Profile</h3>
@@ -22,7 +25,8 @@
   </form>
 
   <form id="passwordForm" class="card form-card" style="margin-top:22px" novalidate>
-    <h3>Change Password</h3>
+    <h3 id="pwTitle">Change password</h3>
+    <p class="muted" id="pwHint" hidden>You signed in with Google, so you don't have a password yet. Set one to also log in with your username.</p>
     <label class="field"><span>Current Password</span><input type="password" name="current_password" autocomplete="current-password" placeholder="Current Password"><em class="err"></em></label>
     <div class="grid-2">
       <label class="field"><span>New Password</span><input type="password" name="new_password" autocomplete="new-password" placeholder="New Password"><em class="err"></em></label>
