@@ -8,21 +8,22 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
-
+from django.core.cache import cache
 from . import emails
 from .models import Profile
 
 User = get_user_model()
 BACKEND = "django.contrib.auth.backends.ModelBackend"
 
-oauth = OAuth()
+oauth = OAuth(cache=cache)
 oauth.register(
     name="google",
     client_id=settings.GOOGLE_CLIENT_ID,
     client_secret=settings.GOOGLE_CLIENT_SECRET,
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
+    client_kwargs={"scope": "openid email profile", "timeout": 10},
 )
+
 
 
 def _unique_username(base):
