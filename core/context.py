@@ -1,11 +1,9 @@
 from django.conf import settings
 
-from .services import display_name
-
-
-from django.conf import settings
-
 from .services import display_name, mask_email
+
+SOCIAL_LABELS = {"facebook": "Facebook", "x": "X", "instagram": "Instagram",
+                 "linkedin": "LinkedIn", "youtube": "YouTube"}
 
 
 def site(request):
@@ -14,4 +12,6 @@ def site(request):
         "display_name": display_name(u) if u.is_authenticated else "",
         "masked_email": mask_email(u.email) if u.is_authenticated else "",
         "CONTACT_EMAIL": settings.CONTACT_EMAIL,
+        "social_links": [{"key": k, "label": SOCIAL_LABELS[k], "url": v}
+                         for k, v in settings.SOCIAL_LINKS.items() if v],
     }

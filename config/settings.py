@@ -145,3 +145,13 @@ CONTACT_EMAIL = env("CONTACT_EMAIL", "support@LetsPublic.local")
 
 
 PAGE_SIZES = {"products": 12, "top": 15, "mine": 8, "queue": 10, "TopProductLimit": 10}
+
+print('env("SOCIAL_LINKEDIN"', env("SOCIAL_LINKEDIN"))
+
+SOCIAL_LINKS = {   # leave a value empty to hide that icon
+    "facebook":  env("SOCIAL_FACEBOOK",  "https://facebook.com/"),
+    "x":         env("SOCIAL_X",         "https://x.com/"),
+    "instagram": env("SOCIAL_INSTAGRAM", ""),
+    "linkedin":  env("SOCIAL_LINKEDIN",  ""),
+    "youtube":   env("SOCIAL_YOUTUBE",   ""),
+}
