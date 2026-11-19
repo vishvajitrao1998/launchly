@@ -2,7 +2,7 @@
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render,get_object_or_404
 from . import emails
 
 from django.contrib import messages
@@ -13,6 +13,14 @@ from .ratelimit import by_field, ratelimit
 from . import emails, services
 from .models import Profile
 
+from django.http import Http404
+from django.utils.safestring import mark_safe
+
+from . import seo
+from .api import plain_text, render_description
+from .models import Category, Product
+from .services import display_name
+
 BACKEND = "django.contrib.auth.backends.ModelBackend"
 
 
@@ -22,10 +30,20 @@ def top_page(request):
     return render(request, "top.html")
 
 def home(request):
-    return render(request, "home.html")
+    q = request.GET.get("q")
+    s = seo.build(request, noindex=bool(q), canonical="/", jsonld=[seo.organization(), seo.website()])
+    return render(request, "home.html", {"seo": s})
 
 def category_page(request, slug=""):
-    return render(request, "category.html", {"slug": slug})
+    if not slug:
+        return render(request, "category.html", {"slug": ""})
+    cat = get_object_or_404(Category, slug=slug)
+    path = f"/category/{cat.slug}/"
+    s = seo.build(
+        request, title=f"Best {cat.name} products · {seo.SITE}", canonical=path,
+        description=f"Discover the best {cat.name} products on {seo.SITE}. Browse top-ranked and newest launches and upvote your favourites.",
+        jsonld=[seo.breadcrumbs([("Home", "/"), ("Products", "/products/"), (cat.name, path)])])
+    return render(request, "category.html", {"slug": cat.slug, "seo": s})
 
 
 def pricing(request):
@@ -37,7 +55,29 @@ def advertise(request):
 
 
 def product_page(request, slug):
-    return render(request, "product.html", {"slug": slug})
+    p = (Product.objects.select_related("category", "owner").prefetch_related("screenshots")
+         .filter(slug=slug).first())
+    u = request.user
+    if not p or not (p.is_live or (u.is_authenticated and (u == p.owner or u.is_staff))):
+        raise Http404                                           # real 404 status, not an empty page
+    desc_html = render_description(p.description)
+    shots = list(p.screenshots.all())
+    image = shots[0].image.url if shots else (p.logo.url if p.logo else None)
+    path = f"/product/{p.slug}/"
+    s = seo.build(
+        request, title=f"{seo.clip(f'{p.name}: {p.tagline}', 58)} · {seo.SITE}",
+        description=seo.clip(plain_text(p.description) or p.tagline), image=image, canonical=path,
+        og_type="article", card="summary_large_image" if shots else "summary", noindex=not p.is_live,
+        jsonld=[
+            {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": p.name,
+             "description": seo.clip(plain_text(p.description) or p.tagline, 300), "url": seo.abs_url(path),
+             "image": seo.abs_url(image) if image else None, "applicationCategory": "WebApplication",
+             "genre": p.category.name, "sameAs": p.website_url,
+             "datePublished": p.launch_at.isoformat() if p.launch_at else None,
+             "author": {"@type": "Person", "name": display_name(p.owner)}},
+            seo.breadcrumbs([("Home", "/"), (p.category.name, f"/category/{p.category.slug}/"), (p.name, path)]),
+        ])
+    return render(request, "product.html", {"seo": s, "product": p, "description_html": mark_safe(desc_html)})
 
 
 @login_required

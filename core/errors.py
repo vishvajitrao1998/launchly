@@ -4,6 +4,7 @@ import uuid
 
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from . import seo
 
 log = logging.getLogger("core")
 
@@ -15,7 +16,9 @@ def _wants_json(request):
 def _page(request, status, title, message, emoji):
     if _wants_json(request):
         return JsonResponse({"detail": message}, status=status)
-    return render(request, "errors/error.html", {"status": status, "title": title, "message": message, "emoji": emoji}, status=status)
+    return render(request, "errors/error.html",
+                  {"status": status, "title": title, "message": message, "emoji": emoji,
+                   "seo": seo.build(request, title=f"{title} · {seo.SITE}", noindex=True)}, status=status)
 
 
 def not_found(request, exception=None):
@@ -41,7 +44,7 @@ def server_error(request):
     log.error("500 on %s %s [ref %s]", request.method, request.path, ref)   # django.request already logs the traceback
     if _wants_json(request):
         return JsonResponse({"detail": "Something went wrong on our side.", "ref": ref}, status=500)
-    html = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    html = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Something Went Wrong · LetsLaunch</title>
 <style>body{{margin:0;min-height:100vh;display:grid;place-items:center;background:#faf5ee;color:#2b1d16;font-family:'Segoe UI',Helvetica,Arial,sans-serif;text-align:center;padding:24px}}
 .box{{max-width:460px}}h1{{font-size:2rem;margin:14px 0 8px}}p{{color:#7b665a;line-height:1.6}}

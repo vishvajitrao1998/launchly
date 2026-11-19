@@ -31,6 +31,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "core.middleware.NoIndexApiMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -146,8 +147,6 @@ CONTACT_EMAIL = env("CONTACT_EMAIL", "support@LetsPublic.local")
 
 PAGE_SIZES = {"products": 12, "top": 15, "mine": 8, "queue": 10, "TopProductLimit": 10}
 
-print('env("SOCIAL_LINKEDIN"', env("SOCIAL_LINKEDIN"))
-
 SOCIAL_LINKS = {   # leave a value empty to hide that icon
     "facebook":  env("SOCIAL_FACEBOOK",  "https://facebook.com/"),
     "x":         env("SOCIAL_X",         "https://x.com/"),
@@ -225,3 +224,7 @@ LOGGING = {
 # Error pages
 # handler400 = "core.errors.bad_request"
 CSRF_FAILURE_VIEW = "core.errors.csrf_failure"
+
+
+SITE_NAME = env("SITE_NAME", "LetsPublic")           # set to your brand name, e.g. LetsPublic
+SEO_NOINDEX = env("SEO_NOINDEX", "0") == "1"       # 1 on staging/test servers: blocks all indexing

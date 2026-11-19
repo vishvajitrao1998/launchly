@@ -3,7 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}LetsPublic · Launch Your Product to the World{% endblock %}</title>
+  <title>{% block title %}{{ seo.title }}{% endblock %}</title>
+  <meta name="description" content="{{ seo.description }}">
+  <link rel="canonical" href="{{ seo.canonical }}">
+  <meta name="robots" content="{% if seo.noindex %}noindex,nofollow{% else %}index,follow,max-image-preview:large{% endif %}">
+  <meta name="theme-color" content="#e0475b">
+  <link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/favicon.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/favicon.png' %}">
+
+  <meta property="og:site_name" content="{{ seo.site }}">
+  <meta property="og:type" content="{{ seo.og_type }}">
+  <meta property="og:title" content="{{ seo.title }}">
+  <meta property="og:description" content="{{ seo.description }}">
+  <meta property="og:url" content="{{ seo.canonical }}">
+  <meta property="og:image" content="{{ seo.image }}">
+  <meta name="twitter:card" content="{{ seo.twitter_card }}">
+  <meta name="twitter:title" content="{{ seo.title }}">
+  <meta name="twitter:description" content="{{ seo.description }}">
+  <meta name="twitter:image" content="{{ seo.image }}">
+  {% for j in seo.jsonld %}<script type="application/ld+json">{{ j }}</script>
+  {% endfor %}
   <meta name="csrf-token" content="{{ csrf_token }}">
   <link rel="icon" type="image/png" href="{% static '/image/favicon.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">

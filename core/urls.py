@@ -1,7 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.views.generic import TemplateView
-from . import api, payments, views, social
+from . import api, payments, views, social,seo_views
 
 from django.urls import path, reverse_lazy
 from .forms import ResetRequestForm, ResetSetForm, LoginForm
@@ -49,6 +49,10 @@ urlpatterns = [
     path("verify/sent/", views.verify_sent, name="verify_sent"),
     path("verify/resend/", views.resend_verification, name="verify_resend"),
     path("verify/<str:token>/", views.verify_email, name="verify_email"),
+
+    # seo
+    path("robots.txt", seo_views.robots_txt),
+    path("sitemap.xml", seo_views.sitemap_xml),
 
     # pages
     path("settings/", views.settings_page, name="account"),

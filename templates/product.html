@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 {% block page %}product{% endblock %}
 {% block content %}
-<div id="productView" data-slug="{{ slug }}"><div class="skeleton" style="height:260px"></div></div>
+<div id="productView" data-slug="{{ product.slug }}">
+  <article class="card pd">
+    <div class="pd-top">
+      <div><h1 style="font-size:2rem">{{ product.name }}</h1><p class="muted">{{ product.tagline }}</p></div>
+    </div>
+    <div class="pd-desc">{{ description_html }}</div>
+  </article>
+</div>
 {% endblock %}
