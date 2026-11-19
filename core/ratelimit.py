@@ -7,7 +7,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import render
-
+import logging
 
 def client_ip(request):
     """Real client IP. Behind nginx or a load balancer, set NUM_PROXIES (1 = one proxy in front)."""
@@ -39,11 +39,14 @@ def hit(key, limit, window):
 
 
 def too_many(request, retry):
+
     if request.path.startswith("/api/"):
         resp = JsonResponse({"detail": f"Too many requests. Try again in {retry} seconds."}, status=429)
     else:
-        resp = render(request, "429.html", {"retry_minutes": max(1, round(retry / 60))}, status=429)
+        resp = render(request, "errors/error.html", {"status": 429, "emoji": "🚦", "title": "Too many attempts",
+                "message": f"For security we paused this action. Please try again in about {max(1, round(retry / 60))} minute(s)."}, status=429)
     resp["Retry-After"] = str(retry)
+    logging.getLogger("django.security").warning("Rate limit hit: %s from %s", request.path, client_ip(request))
     return resp
 
 

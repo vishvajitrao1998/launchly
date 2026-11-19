@@ -563,3 +563,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 .g-ico { width: 20px; height: 20px; flex: none; }
 .or { display: flex; align-items: center; gap: 14px; color: var(--faint); font-size: .85rem; margin: 6px 0 2px; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+
+.err-page { max-width: 560px; margin: 40px auto 0; text-align: center; display: grid; gap: 14px; justify-items: center; }
+.err-emoji { font-size: 3rem; animation: pop .6s var(--ease); }
+.err-code { font-family: var(--font-display); font-weight: 800; font-size: clamp(4.5rem, 14vw, 7.5rem); line-height: 1; letter-spacing: -.05em;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.err-search { width: 100%; max-width: 380px; margin-top: 10px; }

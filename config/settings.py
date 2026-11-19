@@ -179,10 +179,49 @@ REST_FRAMEWORK.update({
 })
 
 EMAIL_VERIFY_HOURS = 24
-if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# if not DEBUG:
+#     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+#     SECURE_SSL_REDIRECT = True
+#     SESSION_COOKIE_SECURE = True
+#     CSRF_COOKIE_SECURE = True
+#     SECURE_HSTS_SECONDS = 31536000
+#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+# if not DEBUG and env("DJANGO_DEV_STATIC", "0") == "1":
+WHITENOISE_USE_FINDERS = True      # static/ folder se seedha serve karo
+WHITENOISE_AUTOREFRESH = True
+
+
+# ---- Logging -----------------------------------------------------------------
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+LOG_LEVEL = env("LOG_LEVEL", "INFO").upper()
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {"format": "{asctime} {levelname} [{name}] {message}", "style": "{"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+        "app": {"class": "logging.handlers.RotatingFileHandler", "filename": LOG_DIR / "app.log",
+                "maxBytes": 5 * 1024 * 1024, "backupCount": 5, "formatter": "verbose", "encoding": "utf-8"},
+        "errors": {"class": "logging.handlers.RotatingFileHandler", "filename": LOG_DIR / "errors.log",
+                   "maxBytes": 5 * 1024 * 1024, "backupCount": 10, "formatter": "verbose", "level": "ERROR", "encoding": "utf-8"},
+        "security": {"class": "logging.handlers.RotatingFileHandler", "filename": LOG_DIR / "security.log",
+                     "maxBytes": 5 * 1024 * 1024, "backupCount": 10, "formatter": "verbose", "encoding": "utf-8"},
+    },
+    "loggers": {
+        "core": {"handlers": ["console", "app", "errors"], "level": LOG_LEVEL, "propagate": False},
+        "django.request": {"handlers": ["console", "errors"], "level": "WARNING", "propagate": False},
+        "django.security": {"handlers": ["console", "security"], "level": "INFO", "propagate": False},
+        "django.server": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+    "root": {"handlers": ["console", "app"], "level": "WARNING"},
+}
+
+# Error pages
+# handler400 = "core.errors.bad_request"
+CSRF_FAILURE_VIEW = "core.errors.csrf_failure"

@@ -1,11 +1,12 @@
-<<<<<<< HEAD
+
 .env
 __pycache__/
 *.pyc
 db.sqlite3
 media/
 staticfiles/
-=======
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -226,4 +227,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
->>>>>>> c907b33ddfcfad3f95d7ca0213e357d06e2c4e1d
+
+

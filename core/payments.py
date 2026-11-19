@@ -20,6 +20,9 @@ from .models import AdSlot, Category, Payment, Plan, Product
 from rest_framework.decorators import throttle_classes
 from .throttles import BASE, PayThrottle
 
+import logging
+log = logging.getLogger(__name__)
+
 def rz_client():
     import razorpay
     if not (settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET):
@@ -38,6 +41,7 @@ def _checkout(user, kind, amount, currency, description, **fk):
         raise RuntimeError(f"Razorpay could not create the order: {e}")
     Payment.objects.create(user=user, kind=kind, amount=amount, currency=currency,
                            razorpay_order_id=order["id"], **fk)
+    log.info("Order created: kind=%s order=%s user=%s amount=%s %s", kind, order["id"], user.id, amount, currency)
     return {"key": settings.RAZORPAY_KEY_ID, "amount": amount * 100, "currency": currency,
             "order_id": order["id"], "name": "LetsPublic", "description": description,
             "prefill": {"name": user.get_full_name() or user.username, "email": user.email}}
@@ -127,6 +131,7 @@ def verify(request):
         services.fail_payment(payment, "Payment signature could not be verified.")
         payment.status = Payment.Status.FAILED
         payment.save(update_fields=["status"])
+        log.warning("Signature mismatch: user=%s ref=%s", request.user.id, d.get("razorpay_order_id") or d.get("razorpay_subscription_id"))
         return Response({"detail": "Payment signature mismatch."}, status=400)
     services.fulfil_payment(payment, d.get("razorpay_payment_id", ""))
     return Response({"ok": True, "kind": payment.kind})
@@ -154,6 +159,7 @@ def webhook(request):
         rz_client().utility.verify_webhook_signature(
             request.body.decode(), request.headers.get("X-Razorpay-Signature", ""), settings.RAZORPAY_WEBHOOK_SECRET)
     except Exception:
+        logging.getLogger("django.security.webhook").warning("Invalid Razorpay webhook signature from %s", request.META.get("REMOTE_ADDR"))
         return HttpResponse(status=400)
     event = json.loads(request.body)
     if event.get("event") in ("payment.captured", "order.paid"):

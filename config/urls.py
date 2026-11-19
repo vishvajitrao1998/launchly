@@ -7,6 +7,11 @@ from core.ratelimit import ratelimit
 
 admin.site.login = ratelimit("admin-login", 10, 900)(admin.site.login)
 
+handler400 = "core.errors.bad_request"
+handler403 = "core.errors.forbidden"
+handler404 = "core.errors.not_found"
+handler500 = "core.errors.server_error"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("core.urls")),

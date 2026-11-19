@@ -13,6 +13,10 @@ from django.core import signing
 from django.core.cache import cache
 from django.urls import reverse
 
+import logging
+log = logging.getLogger("core")
+
+
 SLOT_INFO = {
     "hero": ("Hero Banner", "The big banner at the very top of Home. One advertiser at a time."),
     "spotlight": ("Sponsored Spotlight", "Three featured tiles right under the hero, shown to every visitor."),
@@ -148,6 +152,7 @@ def fulfil_payment(payment, razorpay_payment_id=""):
     payment.razorpay_payment_id = razorpay_payment_id
     payment.paid_at = now
     payment.save()
+    log.info("Payment paid: order=%s user=%s amount=%s %s", payment.razorpay_order_id, payment.user_id, payment.amount, payment.currency)
     if payment.kind == Payment.Kind.PLAN and payment.plan:
         sub = Subscription.objects.create(
             user=payment.user, plan=payment.plan, starts_at=now,
@@ -169,6 +174,7 @@ def fail_payment(payment, reason=""):
             return payment
         payment.status = Payment.Status.FAILED
         payment.save(update_fields=["status"])
+        log.warning("Payment failed: order=%s user=%s reason=%s", payment.razorpay_order_id, payment.user_id, reason)
         if payment.ad_slot_id:
             AdSlot.objects.filter(pk=payment.ad_slot_id, status=AdSlot.Status.PENDING).update(status=AdSlot.Status.CANCELLED)
     emails.payment_failed(payment, reason)
