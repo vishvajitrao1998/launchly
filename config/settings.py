@@ -159,7 +159,24 @@ SOCIAL_LINKS = {   # leave a value empty to hide that icon
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET")
 
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+
+NUM_PROXIES = int(env("NUM_PROXIES", "0") or 0)   # 1 when behind nginx or one load balancer
+
+if env("REDIS_URL"):   # needed in production: limits must be shared by all gunicorn workers
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": env("REDIS_URL")}}
+else:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+
+REST_FRAMEWORK.update({
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle",
+                                 "rest_framework.throttling.UserRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "120/min", "user": "300/min",
+        "vote": "60/min", "submit": "10/hour", "pay": "30/hour",
+        "account": "10/hour", "password": "5/hour",
+    },
+    "NUM_PROXIES": NUM_PROXIES,
+})
 
 EMAIL_VERIFY_HOURS = 24
 if not DEBUG:

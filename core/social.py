@@ -11,7 +11,7 @@ from django.utils.text import slugify
 from django.core.cache import cache
 from . import emails, services
 from .models import Profile
-
+from .ratelimit import ratelimit
 User = get_user_model()
 BACKEND = "django.contrib.auth.backends.ModelBackend"
 
@@ -34,7 +34,7 @@ def _unique_username(base):
         name = f"{base}{n}"
     return name
 
-
+@ratelimit("google-login", 20, 600, methods=("GET",))
 def google_login(request):
     if not settings.GOOGLE_CLIENT_ID:
         messages.error(request, "Google sign-in is not configured yet.")

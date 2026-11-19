@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-
+from .ratelimit import by_field, ratelimit
 from . import emails, services
 from .models import Profile
 
@@ -54,7 +54,7 @@ def dashboard(request):
 def review(request):
     return render(request, "review.html")
 
-
+@ratelimit("signup", 10, 3600)
 def signup(request):
     form = SignupForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -94,7 +94,9 @@ def verify_sent(request):
     email = request.session.get("verify_email", "")
     return render(request, "registration/verify_sent.html", {"masked": services.mask_email(email) if email else ""})
 
-
+@ratelimit("verify-resend-ip", 10, 3600)
+@ratelimit("verify-resend-email", 3, 3600,
+           key=lambda r: (r.POST.get("email") or r.session.get("verify_email") or "").strip().lower())
 @require_POST
 def resend_verification(request):
     email = (request.POST.get("email") or request.session.get("verify_email") or "").strip().lower()
@@ -107,7 +109,7 @@ def resend_verification(request):
                            "You can request one every minute.")
     return redirect("verify_sent")
 
-
+@ratelimit("verify-link", 30, 3600, methods=("GET",))
 def verify_email(request, token):
     user = services.read_verify_token(token)
     if not user:

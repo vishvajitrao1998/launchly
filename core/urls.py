@@ -5,6 +5,25 @@ from . import api, payments, views, social
 
 from django.urls import path, reverse_lazy
 from .forms import ResetRequestForm, ResetSetForm, LoginForm
+from .ratelimit import by_field, ratelimit
+
+
+
+login_view = auth_views.LoginView.as_view(authentication_form=LoginForm)
+login_view = ratelimit("login-user", 8, 900, key=by_field("username"))(login_view)   # one account, many IPs
+login_view = ratelimit("login-ip", 20, 900)(login_view)                                # one IP, many accounts
+
+reset_view = auth_views.PasswordResetView.as_view(
+    template_name="registration/password_reset_form.html", form_class=ResetRequestForm,
+    success_url=reverse_lazy("password_reset_done"))
+reset_view = ratelimit("reset-email", 3, 3600, key=by_field("email"))(reset_view)
+reset_view = ratelimit("reset-ip", 10, 3600)(reset_view)
+
+reset_confirm_view = auth_views.PasswordResetConfirmView.as_view(
+    template_name="registration/password_reset_confirm.html", form_class=ResetSetForm,
+    success_url=reverse_lazy("password_reset_complete"))
+reset_confirm_view = ratelimit("reset-confirm", 20, 3600)(reset_confirm_view)
+
 
 urlpatterns = [
     # pages
@@ -15,7 +34,7 @@ urlpatterns = [
     path("dashboard/", views.dashboard, name="dashboard"),
     path("review/", views.review, name="review"),
     path("product/<slug:slug>/", views.product_page, name="product"),
-    path("login/", auth_views.LoginView.as_view(authentication_form=LoginForm), name="login"),
+    path("login/", login_view, name="login"),
     path("auth/google/", social.google_login, name="google_login"),
     path("auth/google/callback/", social.google_callback, name="google_callback"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
@@ -87,14 +106,10 @@ urlpatterns = [
 
     # Password change
 
-    path("password-reset/", auth_views.PasswordResetView.as_view(
-    template_name="registration/password_reset_form.html", form_class=ResetRequestForm,
-    success_url=reverse_lazy("password_reset_done")), name="password_reset"),
-path("password-reset/sent/", auth_views.PasswordResetDoneView.as_view(
-    template_name="registration/password_reset_done.html"), name="password_reset_done"),
-path("reset/<uidb64>/<token>/", auth_views.PasswordResetConfirmView.as_view(
-    template_name="registration/password_reset_confirm.html", form_class=ResetSetForm,
-    success_url=reverse_lazy("password_reset_complete")), name="password_reset_confirm"),
-path("reset/done/", auth_views.PasswordResetCompleteView.as_view(
+    path("password-reset/", reset_view, name="password_reset"),
+    path("password-reset/sent/", auth_views.PasswordResetDoneView.as_view(
+        template_name="registration/password_reset_done.html"), name="password_reset_done"),
+    path("reset/<uidb64>/<token>/", reset_confirm_view, name="password_reset_confirm"),
+    path("reset/done/", auth_views.PasswordResetCompleteView.as_view(
     template_name="registration/password_reset_complete.html"), name="password_reset_complete"),
 ]

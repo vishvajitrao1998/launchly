@@ -17,6 +17,8 @@ from rest_framework.response import Response
 from . import services
 from .models import AdSlot, Category, Payment, Plan, Product
 
+from rest_framework.decorators import throttle_classes
+from .throttles import BASE, PayThrottle
 
 def rz_client():
     import razorpay
@@ -42,6 +44,7 @@ def _checkout(user, kind, amount, currency, description, **fk):
 
 
 @api_view(["POST"])
+@throttle_classes(BASE + [PayThrottle])
 @permission_classes([IsAuthenticated])
 def buy_plan(request):
     plan = get_object_or_404(Plan, slug=request.data.get("plan"))
@@ -56,6 +59,7 @@ def buy_plan(request):
 
 
 @api_view(["POST"])
+@throttle_classes(BASE + [PayThrottle])
 @permission_classes([IsAuthenticated])
 def book_ad(request):
     d = request.data
@@ -108,6 +112,7 @@ def book_ad(request):
 
 
 @api_view(["POST"])
+@throttle_classes(BASE + [PayThrottle])
 @permission_classes([IsAuthenticated])
 def verify(request):
     import razorpay
@@ -128,6 +133,7 @@ def verify(request):
 
 
 @api_view(["POST"])
+@throttle_classes(BASE + [PayThrottle])
 @permission_classes([IsAuthenticated])
 def failed(request):
     payment = get_object_or_404(Payment, razorpay_order_id=request.data.get("razorpay_order_id"), user=request.user)

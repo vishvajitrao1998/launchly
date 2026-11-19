@@ -26,6 +26,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.dateparse import parse_date
 
+from .throttles import AccountThrottle, BASE, PasswordThrottle, SubmitThrottle, VoteThrottle
+
 def paginate(request, qs, fn, size=12):
     try:
         size = min(max(int(request.GET.get("page_size", size)), 1), 50)
@@ -212,12 +214,14 @@ def _toggle(model, field, pk, user):
 
 
 @api_view(["POST"])
+@throttle_classes(BASE + [VoteThrottle])
 @permission_classes([IsAuthenticated])
 def toggle_upvote(request, pk):
     return _toggle(Upvote, "upvote_count", pk, request.user)
 
 
 @api_view(["POST"])
+@throttle_classes(BASE + [VoteThrottle])
 @permission_classes([IsAuthenticated])
 def toggle_like(request, pk):
     return _toggle(Like, "like_count", pk, request.user)
@@ -295,6 +299,7 @@ def owner_dict(p, state):
 
 
 @api_view(["GET", "POST"])
+@throttle_classes(BASE + [SubmitThrottle])
 @permission_classes([IsAuthenticated])
 def my_products(request):
     if request.method == "GET":
@@ -317,6 +322,7 @@ def my_products(request):
 
 
 @api_view(["GET", "PATCH"])
+@throttle_classes(BASE + [SubmitThrottle])
 @permission_classes([IsAuthenticated])
 def my_product(request, pk):
     p = get_object_or_404(Product.objects.select_related("category"), pk=pk, owner=request.user)
@@ -455,6 +461,7 @@ def _profile_data(u, prof):
 
 
 @api_view(["GET", "PATCH"])
+@throttle_classes(BASE + [AccountThrottle])
 @permission_classes([IsAuthenticated])
 def my_profile(request):
     u = request.user
@@ -473,8 +480,12 @@ def my_profile(request):
 
 
 @api_view(["POST"])
+@throttle_classes(BASE + [PasswordThrottle])
 @permission_classes([IsAuthenticated])
 def change_password(request):
+    """
+    
+    """
     from . import emails
     u, d = request.user, request.data
     if u.has_usable_password() and not u.check_password(d.get("current_password", "")):

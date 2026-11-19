@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block page %}error{% endblock %}
+{% block title %}Slow down · Launchly{% endblock %}
+{% block content %}
+<div class="auth card" style="text-align:center">
+  <div style="font-size:2.6rem">🚦</div>
+  <h1>Too many attempts</h1>
+  <p class="muted">For security we paused this action. Please try again in about {{ retry_minutes }} minute{{ retry_minutes|pluralize }}.</p>
+  <a class="btn btn-primary" href="{% url 'home' %}">Back to home</a>
+</div>
+{% endblock %}

@@ -69,6 +69,11 @@
         location.href = '/login/?next=' + encodeURIComponent(location.pathname + location.search);
         throw new Error('Please log in');
       }
+      if (r.status === 429) {
+        const wait = Number(r.headers.get('Retry-After')) || 0;
+        const e = new Error(`Too many requests. Please wait ${wait > 60 ? Math.ceil(wait / 60) + ' minutes' : (wait || 'a few') + ' seconds'} and try again.`);
+        e.status = 429; throw e;
+      }
       const err = new Error(data?.detail || 'Something went wrong. Please try again.');
       err.status = r.status; err.data = data; throw err;
     }
