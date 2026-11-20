@@ -4,7 +4,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render,get_object_or_404
 from . import emails
-
+from .catalog import PLATFORMS, PLATFORM_MAP, SOCIAL
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -55,7 +55,7 @@ def advertise(request):
 
 
 def product_page(request, slug):
-    p = (Product.objects.select_related("category", "owner").prefetch_related("screenshots")
+    p = (Product.objects.select_related("category", "owner").prefetch_related("screenshots", "tags")
          .filter(slug=slug).first())
     u = request.user
     if not p or not (p.is_live or (u.is_authenticated and (u == p.owner or u.is_staff))):
@@ -74,7 +74,9 @@ def product_page(request, slug):
              "image": seo.abs_url(image) if image else None, "applicationCategory": "WebApplication",
              "genre": p.category.name, "sameAs": p.website_url,
              "datePublished": p.launch_at.isoformat() if p.launch_at else None,
-             "author": {"@type": "Person", "name": display_name(p.owner)}},
+             "author": {"@type": "Person", "name": display_name(p.owner)},             
+             "operatingSystem": ", ".join(PLATFORM_MAP[k][0] for k in (p.platforms or []) if k in PLATFORM_MAP) or None,
+             "keywords": ", ".join(t.name for t in p.tags.all() if t.is_active) or None,},
             seo.breadcrumbs([("Home", "/"), (p.category.name, f"/category/{p.category.slug}/"), (p.name, path)]),
         ])
     return render(request, "product.html", {"seo": s, "product": p, "description_html": mark_safe(desc_html)})
@@ -82,7 +84,9 @@ def product_page(request, slug):
 
 @login_required
 def submit(request):
-    return render(request, "submit.html", {"edit_id": request.GET.get("edit", "")})
+    return render(request, "submit.html", {
+        "edit_id": request.GET.get("edit", ""), "platforms": PLATFORMS,
+        "pricing": Product._meta.get_field('pricing_model').choices, "social": [(k, label) for k, label, _ in SOCIAL]})
 
 
 @login_required

@@ -7,7 +7,7 @@ from django.templatetags.static import static
 from django.utils.safestring import mark_safe
 
 SITE = getattr(settings, "SITE_NAME", "LetsPublic")
-TAGLINE = "Discover and launch new products"
+TAGLINE = "Discover and Launch new Products"
 
 # Pages that must never appear in search results
 PRIVATE = ("/dashboard", "/settings", "/billing", "/analytics", "/review", "/revenue", "/submit", "/login",

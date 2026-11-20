@@ -276,3 +276,8 @@ def read_verify_token(token):
         return None
     user = get_user_model().objects.filter(pk=data.get("uid")).first()
     return user if user and user.email.lower() == data.get("email") else None   # link dies if the email changed
+
+
+def has_social_links(user):
+    """True while the user holds an unexpired plan that includes social links (Scale)."""
+    return _live_subs(user).filter(plan__has_social_links=True).exists()

@@ -1,8 +1,27 @@
 from django.contrib import admin, messages
 
 from . import services
-from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote, ProductScreenshot, Profile,ProductStat
+from .models import AdSlot, Category, Like, Payment, Plan, Product, Subscription, Upvote, ProductScreenshot, Profile,ProductStat, Tag
 
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug", "is_active", "uses")
+    list_filter = ("is_active",)
+    search_fields = ("name", "slug")
+    actions = ["ban", "allow"]
+
+    @admin.display(description="Products")
+    def uses(self, obj):
+        return obj.products.count()
+
+    @admin.action(description="🚫 Ban selected tags")
+    def ban(self, request, qs):
+        qs.update(is_active=False)
+
+    @admin.action(description="✅ Allow selected tags")
+    def allow(self, request, qs):
+        qs.update(is_active=True)
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
@@ -28,6 +47,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ("name", "owner__email", "owner__username")
     readonly_fields = ("upvote_count", "like_count", "created_at", "updated_at")
     actions = ["approve", "reject", "request_info", "email_user"]
+    filter_horizontal = ("tags",)
 
     def _run(self, request, qs, action, need_note):
         done = 0
@@ -58,7 +78,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ("name", "price_inr", "price_usd", "premium_launches", "highlighted", "order")
+    list_display = ("name", "price_inr", "price_usd", "premium_launches", "has_social_links","highlighted", "order")
 
 
 @admin.register(AdSlot)

@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from PIL import Image
 from . import services
-from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot, Profile, Payment, ProductStat
+from .models import AdSlot, Category, Like, Plan, Product, Upvote, ProductScreenshot, Profile, Payment, ProductStat, Tag
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.conf import settings
 import html as _html
@@ -25,6 +25,8 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.dateparse import parse_date
+
+from .catalog import MAX_TAGS, PLATFORM_MAP, clean_social, normalize_tag, tag_slug
 
 from .throttles import AccountThrottle, BASE, PasswordThrottle, SubmitThrottle, VoteThrottle
 
@@ -73,7 +75,7 @@ def me(request):
     if not u.is_authenticated:
         return Response({"authenticated": False})
     return Response({"authenticated": True, "username": u.username, "is_staff": u.is_staff,
-                     "credits": services.credits_for(u)})
+                     "credits": services.credits_for(u), "can_social": services.has_social_links(u),})
 
 
 @api_view(["GET"])
@@ -89,8 +91,10 @@ def products(request):
     qs = Product.objects.live().select_related("category")
     if c := request.GET.get("category"):
         qs = qs.filter(category__slug=c)
+    if t := request.GET.get("tag"):
+        qs = qs.filter(tags__slug=t, tags__is_active=True)
     if q := request.GET.get("q", "").strip():
-        qs = qs.filter(Q(name__icontains=q) | Q(tagline__icontains=q))
+        qs = qs.filter(Q(name__icontains=q) | Q(tagline__icontains=q) | Q(tags__name__icontains=q)).distinct()
     qs = qs.order_by("-launch_at" if request.GET.get("sort") == "new" else "-upvote_count", "-launch_at")
     state = user_state(request)
     return Response(paginate(request, qs, lambda p: product_dict(p, state), size=settings.PAGE_SIZES["products"]))
@@ -98,11 +102,33 @@ def products(request):
 
 @api_view(["GET"])
 def product_detail(request, slug):
-    p = get_object_or_404(Product.objects.select_related("category", "owner").prefetch_related("screenshots"), slug=slug)
+    p = get_object_or_404(Product.objects.select_related("category", "owner").prefetch_related("screenshots", "tags"), slug=slug)
     if not p.is_live and not (request.user.is_authenticated and (request.user == p.owner or request.user.is_staff)):
         return Response({"detail": "Not found."}, status=404)
     d = product_dict(p, user_state(request))
-    d.update(description=render_description(p.description), maker=services.display_name(p.owner), is_live=p.is_live, status=p.status, screenshots=[s.image.url for s in p.screenshots.all()],)
+    audience=p.audience
+    problem=p.problem 
+    solution=p.solution
+    unique_value=p.unique_value
+    platforms=[{"key": k, "label": PLATFORM_MAP[k][0], "icon": PLATFORM_MAP[k][1]} for k in (p.platforms or []) if k in PLATFORM_MAP],
+    pricing=({"key": p.pricing_model, "label": p.get_pricing_model_display()} if p.pricing_model else None),
+    tags=[{"name": t.name, "slug": t.slug} for t in p.tags.all() if t.is_active],
+    social_links=(p.social_links if p.social_links and services.has_social_links(p.owner) else {}),
+    d.update(
+        description=render_description(p.description), 
+        maker=services.display_name(p.owner), 
+        is_live=p.is_live, 
+        status=p.status, 
+        screenshots=[s.image.url for s in p.screenshots.all()],
+        audience=audience, 
+        platforms=platforms, 
+        pricing=pricing,
+        tags=tags,
+        social_links=social_links,
+        problem=problem,
+        solution=solution,
+        unique_value=unique_value
+        )
     return Response(d)
  
 
@@ -249,15 +275,32 @@ def render_description(d):
         return str(linebreaks(d or "", autoescape=True))
     return clean_html(d)
 
+
+QA_FIELDS = ("audience", "problem", "solution", "unique_value")
+PLATFORM_KEYS = set(PLATFORM_MAP)
+
+
+def save_tags(product, names):
+    tags = []
+    for n in names:
+        tag, _ = Tag.objects.get_or_create(slug=tag_slug(n), defaults={"name": n})
+        tags.append(tag)
+    product.tags.set(tags)
+
 class ProductForm(serializers.ModelSerializer):
     category = serializers.SlugRelatedField(slug_field="slug", queryset=Category.objects.all())
     launch_mode = serializers.ChoiceField(choices=["now", "schedule"], write_only=True, default="now")
     premium = serializers.BooleanField(write_only=True, default=False)
+    platforms = serializers.JSONField(required=False)
+    social_links = serializers.JSONField(required=False)
+    tags = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = Product
-        fields = ["name", "tagline", "description", "website_url", "logo", "category",
-                  "scheduled_for", "launch_mode", "premium"]
+        fields = ["name", "tagline", "description", "website_url", "logo", "category", "scheduled_for",
+                  "launch_mode", "premium", "pricing_model", "platforms", "social_links", "tags", *QA_FIELDS]
+        extra_kwargs = {k: {"required": True, "allow_blank": False, "min_length": 10, "max_length": 600} for k in QA_FIELDS}
+        extra_kwargs["pricing_model"] = {"required": True, "allow_blank": False}
 
     def validate_logo(self, f):
         if f and f.size > 2 * 1024 * 1024:
@@ -269,9 +312,38 @@ class ProductForm(serializers.ModelSerializer):
         n = len(plain_text(clean))
         if n < DESC_MIN:
             raise serializers.ValidationError(f"Description must be at least {DESC_MIN} characters.")
-        if n > DESC_MAX + 10:   # +10: tolerance for newline counting differences vs the editor
+        if n > DESC_MAX + 10:
             raise serializers.ValidationError(f"Description is too long ({n}/{DESC_MAX} characters).")
         return clean
+
+    def validate_platforms(self, v):
+        if not isinstance(v, list) or not v or any(x not in PLATFORM_KEYS for x in v):
+            raise serializers.ValidationError("Choose at least one platform.")
+        return list(dict.fromkeys(v))
+
+    def validate_social_links(self, v):
+        try:
+            return clean_social(v if isinstance(v, dict) else {})
+        except ValueError as e:
+            raise serializers.ValidationError(str(e))
+
+    def validate_tags(self, v):
+        if not isinstance(v, list):
+            raise serializers.ValidationError("Invalid tags.")
+        if len(v) > MAX_TAGS:
+            raise serializers.ValidationError(f"You can add up to {MAX_TAGS} tags.")
+        names, seen = [], set()
+        for raw in v:
+            try:
+                n = normalize_tag(raw)
+            except ValueError as e:
+                raise serializers.ValidationError(str(e))
+            if tag_slug(n) not in seen:
+                seen.add(tag_slug(n))
+                names.append(n)
+        if Tag.objects.filter(slug__in=seen, is_active=False).exists():
+            raise serializers.ValidationError("One of those tags isn't allowed.")
+        return names
 
     def validate(self, a):
         if a.pop("launch_mode", "now") == "schedule":
@@ -280,21 +352,53 @@ class ProductForm(serializers.ModelSerializer):
                 raise serializers.ValidationError({"scheduled_for": "Pick a time at least 1 hour from now."})
         else:
             a["scheduled_for"] = None
+        if "social_links" in a and not services.has_social_links(self.context["request"].user):
+            a.pop("social_links")            # Scale-plan feature: ignored for everyone else
         return a
 
     def create(self, vd):
         vd.pop("premium", None)
-        return super().create(vd)
+        tags = vd.pop("tags", None)
+        p = super().create(vd)
+        save_tags(p, tags or [])
+        return p
 
     def update(self, inst, vd):
         vd.pop("premium", None)
-        return super().update(inst, vd)
+        tags = vd.pop("tags", None)
+        p = super().update(inst, vd)
+        if tags is not None:
+            save_tags(p, tags)
+        return p
 
 
 def owner_dict(p, state):
     d = product_dict(p, state)
-    d.update(status=p.status, admin_note=p.admin_note, scheduled_for=p.scheduled_for,
-             is_live=p.is_live, description=p.description, screenshots=[{"id": s.id, "url": s.image.url} for s in p.screenshots.all()],description_text=plain_text(p.description))
+    audience=p.audience, 
+    problem=p.problem, 
+    solution=p.solution, 
+    unique_value=p.unique_value,
+    pricing_model=p.pricing_model, 
+    platforms=p.platforms or [], 
+    social_links=p.social_links or {},
+    tags=[t.name for t in p.tags.all()],
+    d.update(
+        status=p.status, 
+        admin_note=p.admin_note, 
+        scheduled_for=p.scheduled_for,
+        is_live=p.is_live, 
+        description=p.description, 
+        screenshots=[{"id": s.id, "url": s.image.url} for s in p.screenshots.all()],
+        description_text=plain_text(p.description), 
+        audience=audience,
+        pricing_model=pricing_model,
+        tags=tags,
+        problem=problem,
+        solution=solution,
+        unique_value=unique_value,
+        social_links=social_links,
+        platforms=platforms
+        )
     return d
 
 
@@ -305,12 +409,12 @@ def my_products(request):
     if request.method == "GET":
         state = user_state(request)
         qs = (Product.objects.filter(owner=request.user).select_related("category")
-              .prefetch_related("screenshots").order_by("-created_at"))
+              .prefetch_related("screenshots", "tags").order_by("-created_at"))
         if st := request.GET.get("status"):
             qs = qs.filter(status=st)
         return Response(paginate(request, qs, lambda p: owner_dict(p, state), size=settings.PAGE_SIZES["mine"]))
 
-    s = ProductForm(data=request.data)
+    s = ProductForm(data=request.data, context={"request": request})
     s.is_valid(raise_exception=True)
     files, _ = check_screenshots(request)
     premium = s.validated_data.get("premium", False)
@@ -330,7 +434,7 @@ def my_product(request, pk):
         return Response(owner_dict(p, user_state(request)))
     if p.status not in (Product.Status.PENDING, Product.Status.NEEDS_INFO):
         return Response({"detail": "Only launches that are in review or need info can be edited."}, status=400)
-    s = ProductForm(p, data=request.data, partial=True)
+    s = ProductForm(p, data=request.data, partial=True, context={"request": request})
     s.is_valid(raise_exception=True)
     files, remove = check_screenshots(request, p)
     s.save(status=Product.Status.PENDING)
@@ -355,7 +459,7 @@ def admin_queue(request):
     status = request.GET.get("status", "pending")
     counts = dict(Product.objects.values_list("status").annotate(n=Count("id")))
     qs = (Product.objects.filter(status=status).select_related("category", "owner")
-          .prefetch_related("screenshots").order_by("created_at"))
+          .prefetch_related("screenshots", "tags").order_by("created_at"))
 
     def row(p):
         d = owner_dict(p, (set(), set()))
@@ -728,3 +832,14 @@ def admin_payments(request):
                 "currency": x.currency, "status": x.status, "date": x.paid_at or x.created_at,
                 "ref": x.razorpay_payment_id or x.razorpay_order_id}
     return Response(paginate(request, qs, row, size=10))
+
+
+@api_view(["GET"])
+def tags(request):
+    """Popular tags, or matches while the maker is typing."""
+    q = request.GET.get("q", "").strip()
+    qs = Tag.objects.filter(is_active=True).annotate(
+        n=Count("products", filter=Q(products__status="approved", products__launch_at__lte=timezone.now())))
+    if q:
+        qs = qs.filter(name__icontains=q)
+    return Response([{"name": t.name, "slug": t.slug, "count": t.n} for t in qs.order_by("-n", "name")[:15]])

@@ -37,3 +37,4 @@ class Command(BaseCommand):
                 website_url="https://example.com", category=Category.objects.get(name=cat), is_premium=prem,
                 status="approved", launch_at=timezone.now(), upvote_count=len(n) * 3))
         self.stdout.write(self.style.SUCCESS("Seeded categories, plans and demo products."))
+

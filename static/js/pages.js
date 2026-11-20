@@ -135,6 +135,7 @@
     /* ======================= CATEGORY / ALL PRODUCTS ======================= */
   pages.category = async () => {
     const slug = $('#catView').dataset.slug;
+    const tag = new URLSearchParams(location.search).get('tag') || '';
     let sort = new URLSearchParams(location.search).get('sort') === 'new' ? 'new' : 'top', page = 1;
     fillRail();
 
@@ -142,14 +143,15 @@
     const current = cats.find(c => c.slug === slug);
     if (slug && !current) { $('#catList').innerHTML = '<div class="empty">Category not found.</div>'; return; }
     $('#catTitle').textContent = current ? `${current.icon} ${current.name}` : 'All Products';
+    if (tag) $('#catTitle').textContent = '#' + tag.replace(/-/g, ' ');
     document.title = `${current ? current.name : 'All products'} · LetsPublic`;
     $('#catChips').innerHTML = `<a class="chip ${slug ? '' : 'on'}" href="/products/">✨ All</a>` + cats.map(c =>
       `<a class="chip ${c.slug === slug ? 'on' : ''}" href="/category/${esc(c.slug)}/" style="--c:${esc(c.color)}">${esc(c.icon)} ${esc(c.name)} <small>${c.count}</small></a>`).join('');
 
     async function load() {
       $('#catList').innerHTML = skel(6, 84);
-      const d = await api(`/api/products/?category=${encodeURIComponent(slug)}&sort=${sort}&page=${page}&page=${page}`);
-      history.replaceState(null, '', `${location.pathname}?sort=${sort}`);
+      const d = await api(`/api/products/?category=${encodeURIComponent(slug)}&sort=${sort}&page=${page}&page=${page}&tag=${encodeURIComponent(tag)}`);
+      history.replaceState(null, '', `${location.pathname}?${tag ? 'tag=' + encodeURIComponent(tag) + '&' : ''}sort=${sort}`);
       $$('#sortTabs .tab').forEach(t => t.classList.toggle('on', t.dataset.sort === sort));
       $('#catSub').textContent = `${d.total} product${d.total === 1 ? '' : 's'}`;
       $('#catList').innerHTML = d.results.length
@@ -341,6 +343,54 @@
     });
     descCount();
 
+        // ----- platforms, tags, Q&A counters, social links -----
+    const platformBoxes = $$('input[name=platforms]', form);
+    let tags = [];
+    const drawTags = () => {
+      $('#tagChips').innerHTML = tags.map((t, i) => `<span class="tag-chip">${esc(t)}<button type="button" data-rm-tag="${i}" aria-label="Remove ${esc(t)}">×</button></span>`).join('');
+      $('#tagsCount').textContent = `${tags.length}/5`;
+    };
+    const addTag = raw => {
+      const name = raw.trim().replace(/\s+/g, ' ').replace(/^#/, '');
+      if (!name) return;
+      if (name.length < 2 || name.length > 30) return toast('Tags must be 2-30 characters', 'bad');
+      if (tags.some(t => t.toLowerCase() === name.toLowerCase())) return;
+      if (tags.length >= 5) return toast('Maximum 5 tags', 'bad');
+      tags.push(name); drawTags();
+    };
+    const tagInput = $('#tagInput'), sug = t => `<button type="button" class="tag-sug" data-tag="${esc(t.name)}">#${esc(t.name)}${t.count ? ` <small>${t.count}</small>` : ''}</button>`;
+    let tagTimer;
+    tagInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagInput.value); tagInput.value = ''; $('#tagSuggest').innerHTML = ''; }
+      else if (e.key === 'Backspace' && !tagInput.value && tags.length) { tags.pop(); drawTags(); }
+    });
+    tagInput.addEventListener('input', () => {
+      clearTimeout(tagTimer);
+      const q = tagInput.value.trim();
+      if (!q) { $('#tagSuggest').innerHTML = ''; return; }
+      tagTimer = setTimeout(async () => {
+        try { $('#tagSuggest').innerHTML = (await api(`/api/tags/?q=${encodeURIComponent(q)}`)).map(sug).join(''); } catch (e) {}
+      }, 200);
+    });
+    form.addEventListener('click', e => {
+      const s = e.target.closest('[data-tag]'), r = e.target.closest('[data-rm-tag]');
+      if (s) { addTag(s.dataset.tag); tagInput.value = ''; $('#tagSuggest').innerHTML = ''; tagInput.focus(); }
+      if (r) { tags.splice(+r.dataset.rmTag, 1); drawTags(); }
+    });
+    api('/api/tags/').then(list => { $('#tagPopular').innerHTML = list.slice(0, 8).map(sug).join('') || 'none yet'; }).catch(() => {});
+
+    $$('textarea[maxlength]', form).forEach(t => {
+      const c = t.closest('.field').querySelector('.cnt'); if (!c) return;
+      const f = () => (c.textContent = `${t.value.length}/${t.maxLength}`);
+      t.addEventListener('input', f); f();
+    });
+
+    if (!me.can_social) {
+      $('#socialBox').classList.add('locked'); $('#socialLock').hidden = false;
+      $$('[data-social]', form).forEach(i => (i.disabled = true));
+    }
+    const socials = () => Object.fromEntries($$('[data-social]', form).map(i => [i.dataset.social, i.value.trim()]).filter(([, v]) => v));
+
     if (editId) {
       $('#submitTitle').textContent = 'Update Your Launch';
       $('#submitBtn').textContent = 'Resubmit for Review';
@@ -348,6 +398,17 @@
       const p = await api(`/api/me/products/${editId}/`);
       kept = p.screenshots; drawShots();
       ['name', 'tagline', 'website_url'].forEach(k => (form.elements[k].value = p[k]));
+
+      // ===== yahan se naya block paste karo =====
+      ['audience', 'problem', 'solution', 'unique_value'].forEach(k => (form.elements[k].value = p[k] || ''));
+      form.elements.pricing_model.value = p.pricing_model || '';
+      (p.platforms || []).forEach(v => { const b = platformBoxes.find(x => x.value === v); if (b) b.checked = true; });
+      tags = p.tags || []; drawTags();
+      Object.entries(p.social_links || {}).forEach(([k, v]) => { const i = $(`[data-social="${k}"]`, form); if (i) i.value = v; });
+      $$('textarea[maxlength]', form).forEach(t => t.dispatchEvent(new Event('input')));
+      // ===== yahan tak =====
+
+
       if (/<[a-z][^>]*>/i.test(p.description)) quill.clipboard.dangerouslyPasteHTML(p.description);
       else quill.setText(p.description);   // older plain-text descriptions
       descCount();
@@ -363,6 +424,9 @@
       e.preventDefault();
       const fd = new FormData(form);
       fd.set('description', quill.getText().trim() ? quill.root.innerHTML : '');
+      fd.set('platforms', JSON.stringify(platformBoxes.filter(b => b.checked).map(b => b.value)));
+      fd.set('tags', JSON.stringify(tags));
+      fd.set('social_links', JSON.stringify(me.can_social ? socials() : {}));
       if (!form.logo.files[0]) fd.delete('logo');
       fd.delete('screenshots'); added.forEach(f => fd.append('screenshots', f)); removed.forEach(id => fd.append('remove_screenshots', id));
       if (form.launch_mode.value === 'schedule' && form.scheduled_for.value) fd.set('scheduled_for', new Date(form.scheduled_for.value).toISOString());
@@ -434,6 +498,7 @@
             <div class="title-row"><b><a class="name" href="/product/${esc(p.slug)}/" target="_blank" rel="noopener">${esc(p.name)}</a></b>${p.is_premium ? premiumBadge : ''}<a class="link" href="${esc(p.website_url)}" target="_blank" rel="noopener">${esc(p.website_url)}</a></div>
             <div class="meta-line"><span>${esc(p.category.icon)} ${esc(p.category.name)}</span><span>by ${esc(p.owner.username)} (${esc(p.owner.email || 'no email')})</span>${p.scheduled_for ? `<span><svg class="i" style="width:14px;height:14px"><use href="#i-clock"/></svg> Wants ${fmtDate(p.scheduled_for, true)}</span>` : ''}</div>
             <p class="desc"><b>${esc(p.tagline)}</b><br>${esc(p.description_text)}</p>
+            <div class="meta-line"><span>${(p.platforms || []).join(', ') || 'No platform'}</span><span>${esc(p.pricing_model || 'No pricing')}</span><span>${(p.tags || []).map(t => '#' + esc(t)).join(' ')}</span></div>
             ${p.admin_note ? `<div class="note">Last note: ${esc(p.admin_note)}</div>` : ''}
             <div class="row-actions">
               ${status !== 'approved' ? '<button class="btn btn-sm btn-ok" data-review="approve">Approve</button>' : ''}
@@ -472,12 +537,15 @@
   };
 
   /* ======================= PRODUCT DETAIL ======================= */
+    const QA = [['audience', 'Who can use it?', 'i-users'], ['problem', 'What problem does it solve?', 'i-alert'],
+              ['solution', 'How does it solve it?', 'i-bulb'], ['unique_value', 'What makes it unique?', 'i-sparkles']];
   pages.product = async () => {
     const el = $('#productView');
     let p;
     try { p = await api(`/api/products/${el.dataset.slug}/`); }
     catch (e) { el.innerHTML = '<div class="empty">This product could not be found.</div>'; return; }
     document.title = `${p.name} · LetsPublic`;
+    console.log("p.platforms", p.platforms)
     el.innerHTML = `
       ${p.is_live ? '' : `<div class="callout warn">Preview only. This product is not public yet (status: <b>${esc(p.status)}</b>).
       ${document.body.dataset.staff === '1' ? '<a class="link" href="/review/">← Back to review queue</a>' : ''}</div>`}
@@ -488,8 +556,18 @@
           <div class="pd-actions"><a class="btn" data-visit href="${esc(p.website_url)}" target="_blank" rel="noopener">Visit</a>${p.is_live ? voteButtons(p) : ''}</div>
         </div>
         <div class="meta-line"><span class="chip sm">${esc(p.category.icon)} ${esc(p.category.name)}</span>${p.launch_at ? `<span>Launched ${fmtDate(p.launch_at, true)}</span>` : ''}<span>by ${esc(p.maker)}</span></div>
+        ${p.platforms.length || p.pricing ? `<div class="facts-row">
+        ${p.platforms[0].map(x => `<span class="pill">${x.icon} ${esc(x.label)}</span>`).join('')}
+        ${p.pricing ? `<span class="pill pill-price">💳 ${esc(p.pricing[0].label)}</span>` : ''}</div>` : ''}
+        ${p.tags[0].length ? `<div class="tag-row">${p.tags[0].map(t => `<a class="tag-link" href="/products/?tag=${esc(t.slug)}">#${esc(t.name)}</a>`).join('')}</div>` : ''}
+        ${Object.keys(p.social_links[0]).length ? `<div class="socials">${Object.entries(p.social_links[0]).map(([k, u]) =>
+          `<a class="soc soc-${esc(k)}" href="${esc(u)}" target="_blank" rel="noopener noreferrer nofollow" aria-label="${esc(k)}"><svg class="brand-i"><use href="#b-${esc(k)}"/></svg></a>`).join('')}</div>` : ''}
+
         <div class="pd-desc">${p.description}</div>
         ${p.screenshots.length ? `<div class="gallery">${p.screenshots.map(u => `<button class="gal" data-shot="${esc(u)}"><img loading="lazy" src="${esc(u)}" alt="${esc(p.name)} screenshot"></button>`).join('')}</div>` : ''}
+        ${QA.some(([k]) => p[k]) ? `<section class="about"><h2>About ${esc(p.name)}</h2><div class="about-grid">
+          ${QA.filter(([k]) => p[k]).map(([k, q, ic]) => `<div class="qa"><i class="qa-ico"><svg class="i"><use href="#${ic}"/></svg></i>
+            <div><h3>${q}</h3><p>${esc(p[k])}</p></div></div>`).join('')}</div></section>` : ''}
       </article>`;
       el.addEventListener('click', e => { const g = e.target.closest('[data-shot]'); if (g) modal(`<img class="lightbox" src="${esc(g.dataset.shot)}" alt=""><div class="row-actions"><button class="btn" data-close>Close</button></div>`); });
       $$('.pd-desc a').forEach(a => { a.target = '_blank'; });

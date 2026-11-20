@@ -30,6 +30,16 @@ class ProductQuerySet(models.QuerySet):
         return self.filter(status=Product.Status.APPROVED, launch_at__lte=timezone.now())
 
 
+class PricingModel(models.TextChoices):
+    FREE = "free", "Free"
+    FREEMIUM = "freemium", "Freemium"
+    PAID = "paid", "Paid"
+    SUBSCRIPTION = "subscription", "Subscription"
+    ONE_TIME = "one_time", "One-time purchase"
+    TRIAL = "free_trial", "Free trial"
+    OPEN_SOURCE = "open_source", "Open source"
+    CONTACT = "contact", "Contact for pricing"
+
 class Product(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending review"
@@ -49,6 +59,14 @@ class Product(models.Model):
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True)
     admin_note = models.TextField(blank=True, help_text="Message to the maker (shown on their dashboard / emailed).")
     is_premium = models.BooleanField(default=False)
+    pricing_model = models.CharField(max_length=14, choices=PricingModel.choices, blank=True)
+    platforms = models.JSONField(default=list, blank=True)
+    audience = models.TextField(blank=True)        # Who can use it?
+    problem = models.TextField(blank=True)         # What problem does it solve?
+    solution = models.TextField(blank=True)        # How does it solve it?
+    unique_value = models.TextField(blank=True)    # What makes it unique?
+    social_links = models.JSONField(default=dict, blank=True)
+    tags = models.ManyToManyField("Tag", blank=True, related_name="products")
 
     scheduled_for = models.DateTimeField(null=True, blank=True, help_text="Requested launch time.")
     launch_at = models.DateTimeField(null=True, blank=True, help_text="Set on approval; product is public once this passes.")
@@ -105,6 +123,7 @@ class Plan(models.Model):
     price_inr = models.PositiveIntegerField(default=0)
     price_usd = models.PositiveIntegerField(default=0)
     has_analytics = models.BooleanField(default=False)
+    has_social_links = models.BooleanField(default=False)
     period_days = models.PositiveSmallIntegerField(default=30)
     premium_launches = models.PositiveSmallIntegerField(default=0, help_text="Premium-badge launches included per period.")
     features = models.JSONField(default=list)
@@ -220,3 +239,19 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.display_name or str(self.user)
+
+
+
+class Tag(models.Model):
+    name = models.CharField(max_length=30)
+    slug = models.SlugField(max_length=40, unique=True)
+    is_active = models.BooleanField(default=True, help_text="Untick to ban this tag everywhere.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+

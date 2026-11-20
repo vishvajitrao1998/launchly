@@ -187,8 +187,8 @@ EMAIL_VERIFY_HOURS = 24
 #     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 # if not DEBUG and env("DJANGO_DEV_STATIC", "0") == "1":
-WHITENOISE_USE_FINDERS = True      # static/ folder se seedha serve karo
-WHITENOISE_AUTOREFRESH = True
+# WHITENOISE_USE_FINDERS = True      # static/ folder se seedha serve karo
+# WHITENOISE_AUTOREFRESH = True
 
 
 # ---- Logging -----------------------------------------------------------------

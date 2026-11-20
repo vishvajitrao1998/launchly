@@ -74,6 +74,7 @@ urlpatterns = [
     path("api/pricing/", api.pricing),
     path("api/top/", api.top),
     path("api/rail/", api.rail),
+    path("api/tags/", api.tags),
 
     # maker API
     path("api/me/products/", api.my_products),

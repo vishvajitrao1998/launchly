@@ -38,6 +38,55 @@
     <em class="err"></em>
   </fieldset>
 
+    <fieldset class="field">
+    <span>Platforms <small>choose all that apply</small></span>
+    <div class="picks">
+      {% for key, label, icon in platforms %}
+      <label class="pick"><input type="checkbox" name="platforms" value="{{ key }}"><span>{{ icon }} {{ label }}</span></label>
+      {% endfor %}
+    </div>
+    <em class="err"></em>
+  </fieldset>
+
+  <label class="field"><span>Pricing Model</span>
+    <select name="pricing_model" required>
+      <option value="">Select Pricing Model…</option>
+      {% for key, label in pricing %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+    </select><em class="err"></em></label>
+
+  <div class="field" id="tagsField">
+    <span>Tags <small id="tagsCount">0/5</small></span>
+    <div class="tags-input"><span id="tagChips"></span>
+      <input name="tags" id="tagInput" maxlength="30" autocomplete="off" placeholder="Type a tag and press Enter"></div>
+    <div id="tagSuggest" class="tag-suggest"></div>
+    <div class="muted" style="font-size:.85rem">Popular: <span id="tagPopular"></span></div>
+    <em class="err"></em>
+  </div>
+
+  <div class="qa-form">
+    <div><h3>Tell people about it</h3><p class="muted">These answers appear on your product page.</p></div>
+    <label class="field"><span><b class="qa-q"><i class="qa-ico"><svg class="i"><use href="#i-users"/></svg></i>Who can use it?</b><small class="cnt">0/600</small></span>
+      <textarea name="audience" rows="3" maxlength="600" placeholder="e.g. Freelancers and small agencies who send invoices every month"></textarea><em class="err"></em></label>
+    <label class="field"><span><b class="qa-q"><i class="qa-ico"><svg class="i"><use href="#i-alert"/></svg></i>What problem does it solve?</b><small class="cnt">0/600</small></span>
+      <textarea name="problem" rows="3" maxlength="600" placeholder="What is painful, slow or broken today?"></textarea><em class="err"></em></label>
+    <label class="field"><span><b class="qa-q"><i class="qa-ico"><svg class="i"><use href="#i-bulb"/></svg></i>How does it solve it?</b><small class="cnt">0/600</small></span>
+      <textarea name="solution" rows="3" maxlength="600" placeholder="Describe your solution in plain words"></textarea><em class="err"></em></label>
+    <label class="field"><span><b class="qa-q"><i class="qa-ico"><svg class="i"><use href="#i-sparkles"/></svg></i>What makes it unique?</b><small class="cnt">0/600</small></span>
+      <textarea name="unique_value" rows="3" maxlength="600" placeholder="Why would someone pick this over alternatives?"></textarea><em class="err"></em></label>
+  </div>
+
+  <fieldset class="field social-box" id="socialBox">
+    <span>Social Links <small class="plan-tag">Scale Plan</small></span>
+    <div class="social-grid">
+      {% for key, label in social %}
+      <label class="social-in"><b>{{ label }}</b><input type="url" data-social="{{ key }}" maxlength="200" placeholder="https://"></label>
+      {% endfor %}
+    </div>
+    <input type="hidden" name="social_links">
+    <div class="lock-note" id="socialLock" hidden>🔒 Social links are included in the <a class="link" href="/pricing/">Scale plan</a>.</div>
+    <em class="err"></em>
+  </fieldset>
+
 
   <fieldset class="field">
     <span>When should it launch?</span>

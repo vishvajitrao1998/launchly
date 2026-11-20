@@ -7,6 +7,10 @@
       <div><h1 style="font-size:2rem">{{ product.name }}</h1><p class="muted">{{ product.tagline }}</p></div>
     </div>
     <div class="pd-desc">{{ description_html }}</div>
+    {% if product.audience %}<h2>Who can use it?</h2><p>{{ product.audience }}</p>{% endif %}
+    {% if product.problem %}<h2>What problem does it solve?</h2><p>{{ product.problem }}</p>{% endif %}
+    {% if product.solution %}<h2>How does it solve it?</h2><p>{{ product.solution }}</p>{% endif %}
+    {% if product.unique_value %}<h2>What makes it unique?</h2><p>{{ product.unique_value }}</p>{% endif %}
   </article>
 </div>
 {% endblock %}
