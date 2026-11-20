@@ -98,11 +98,18 @@ def products(request):
     qs = qs.order_by("-launch_at" if request.GET.get("sort") == "new" else "-upvote_count", "-launch_at")
     state = user_state(request)
     return Response(paginate(request, qs, lambda p: product_dict(p, state), size=settings.PAGE_SIZES["products"]))
- 
+
+
+def _maker_about(owner):
+    prof = getattr(owner, "profile", None)
+    about, links = (prof.about, prof.social_links or {}) if prof else ("", {})
+    if not about and not links:
+        return None
+    return {"name": services.display_name(owner), "about": about, "links": links}
 
 @api_view(["GET"])
 def product_detail(request, slug):
-    p = get_object_or_404(Product.objects.select_related("category", "owner").prefetch_related("screenshots", "tags"), slug=slug)
+    p = get_object_or_404(Product.objects.select_related("category", "owner__profile").prefetch_related("screenshots", "tags"), slug=slug)
     if not p.is_live and not (request.user.is_authenticated and (request.user == p.owner or request.user.is_staff)):
         return Response({"detail": "Not found."}, status=404)
     d = product_dict(p, user_state(request))
@@ -127,7 +134,8 @@ def product_detail(request, slug):
         social_links=social_links,
         problem=problem,
         solution=solution,
-        unique_value=unique_value
+        unique_value=unique_value,
+        maker_about=_maker_about(p.owner),
         )
     return Response(d)
  
@@ -556,12 +564,21 @@ class ProfileForm(serializers.Serializer):
     first_name = serializers.CharField(max_length=150, allow_blank=True, required=False)
     last_name = serializers.CharField(max_length=150, allow_blank=True, required=False)
     display_name = serializers.CharField(max_length=40, allow_blank=True, required=False)
+    about = serializers.CharField(max_length=600, allow_blank=True, required=False)
+    social_links = serializers.JSONField(required=False)
 
 
 def _profile_data(u, prof):
     return {"username": u.username, "email": u.email, "first_name": u.first_name,
             "last_name": u.last_name, "display_name": prof.display_name,
+            "about": prof.about, "social_links": prof.social_links or {},
             "has_password": u.has_usable_password(), "google": bool(prof.google_id)}
+
+def validate_social_links(self, v):
+        try:
+            return clean_social(v if isinstance(v, dict) else {})
+        except ValueError as e:
+            raise serializers.ValidationError(str(e))
 
 
 @api_view(["GET", "PATCH"])
@@ -579,7 +596,11 @@ def my_profile(request):
         u.save(update_fields=["first_name", "last_name"])
         if "display_name" in d:
             prof.display_name = d["display_name"].strip()
-            prof.save(update_fields=["display_name"])
+        if "about" in d:
+            prof.about = d["about"].strip()
+        if "social_links" in d:
+            prof.social_links = d["social_links"]
+        prof.save()
     return Response(_profile_data(u, prof))
 
 

@@ -13,13 +13,16 @@ from .ratelimit import by_field, ratelimit
 from . import emails, services
 from .models import Profile
 
-from django.http import Http404
+from django.http import Http404,Http404, HttpResponse
 from django.utils.safestring import mark_safe
 
 from . import seo
 from .api import plain_text, render_description
 from .models import Category, Product
 from .services import display_name
+
+from xml.sax.saxutils import escape
+from django.views.decorators.clickjacking import xframe_options_exempt
 
 BACKEND = "django.contrib.auth.backends.ModelBackend"
 
@@ -115,8 +118,44 @@ def signup(request):
 
 @login_required
 def settings_page(request):
-    return render(request, "settings.html")
+    return render(request, "settings.html", {"social": [(k, label) for k, label, _ in SOCIAL]})
 
+@login_required
+def embed_page(request):
+    return render(request, "embed_code.html")
+
+
+@xframe_options_exempt                       # this page is meant to be shown inside other people's sites
+def embed_card(request, slug):
+    p = Product.objects.live().select_related("category").filter(slug=slug).first()
+    if not p:
+        return HttpResponse('<body style="font:14px sans-serif;color:#7b665a;padding:18px">This product is not available.</body>', status=404)
+    resp = render(request, "embed/card.html", {
+        "product": p, "site": seo.SITE, "theme": "dark" if request.GET.get("theme") == "dark" else "light",
+        "url": seo.abs_url(f"/product/{p.slug}/") + "?ref=embed",
+        "initials": "".join(w[0] for w in p.name.split()[:2]).upper() or "?"})
+    resp["Cache-Control"] = "public, max-age=300"
+    return resp
+
+
+def badge_svg(request, slug):
+    p = get_object_or_404(Product.objects.live(), slug=slug)
+    bg, fg, sub, line = (("#1e1814", "#f7eee5", "#b5a495", "#3a3028") if request.GET.get("theme") == "dark"
+                         else ("#ffffff", "#2b1d16", "#7b665a", "#eaded0"))
+    site = escape(seo.SITE[:14])
+    font = 'font-family="Segoe UI,Helvetica,Arial,sans-serif"'
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="250" height="54" viewBox="0 0 250 54" role="img" aria-label="Featured on {site}">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d93f6a"/><stop offset=".6" stop-color="#f2662e"/><stop offset="1" stop-color="#f5a524"/></linearGradient></defs>
+<rect x=".5" y=".5" width="249" height="53" rx="12" fill="{bg}" stroke="{line}"/>
+<rect x="10" y="10" width="34" height="34" rx="10" fill="url(#g)"/>
+<path d="M27 18.5 35.5 33.5H18.5Z" fill="#fff"/>
+<text x="54" y="23" {font} font-size="9.5" font-weight="700" letter-spacing="1" fill="{sub}">FEATURED ON</text>
+<text x="54" y="42" {font} font-size="18" font-weight="800" fill="{fg}">{site}</text>
+<text x="238" y="33" text-anchor="end" {font} font-size="12" font-weight="700" fill="{sub}">&#9650; {int(p.upvote_count)}</text>
+</svg>'''
+    resp = HttpResponse(svg, content_type="image/svg+xml")
+    resp["Cache-Control"] = "public, max-age=3600"
+    return resp
 
 @login_required
 def billing_page(request):

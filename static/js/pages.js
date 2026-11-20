@@ -539,6 +539,8 @@
   /* ======================= PRODUCT DETAIL ======================= */
     const QA = [['audience', 'Who can use it?', 'i-users'], ['problem', 'What problem does it solve?', 'i-alert'],
               ['solution', 'How does it solve it?', 'i-bulb'], ['unique_value', 'What makes it unique?', 'i-sparkles']];
+      const socialIcons = links => `<div class="socials">${Object.entries(links).map(([k, u]) =>
+    `<a class="soc soc-${esc(k)}" href="${esc(u)}" target="_blank" rel="noopener noreferrer nofollow" aria-label="${esc(k)}"><svg class="brand-i"><use href="#b-${esc(k)}"/></svg></a>`).join('')}</div>`;
   pages.product = async () => {
     const el = $('#productView');
     let p;
@@ -556,7 +558,7 @@
           <div class="pd-actions"><a class="btn" data-visit href="${esc(p.website_url)}" target="_blank" rel="noopener">Visit</a>${p.is_live ? voteButtons(p) : ''}</div>
         </div>
         <div class="meta-line"><span class="chip sm">${esc(p.category.icon)} ${esc(p.category.name)}</span>${p.launch_at ? `<span>Launched ${fmtDate(p.launch_at, true)}</span>` : ''}<span>by ${esc(p.maker)}</span></div>
-        ${p.platforms.length || p.pricing ? `<div class="facts-row">
+        ${p.platforms[0].length || p.pricing[0] ? `<div class="facts-row">
         ${p.platforms[0].map(x => `<span class="pill">${x.icon} ${esc(x.label)}</span>`).join('')}
         ${p.pricing ? `<span class="pill pill-price">💳 ${esc(p.pricing[0].label)}</span>` : ''}</div>` : ''}
         ${p.tags[0].length ? `<div class="tag-row">${p.tags[0].map(t => `<a class="tag-link" href="/products/?tag=${esc(t.slug)}">#${esc(t.name)}</a>`).join('')}</div>` : ''}
@@ -568,6 +570,11 @@
         ${QA.some(([k]) => p[k]) ? `<section class="about"><h2>About ${esc(p.name)}</h2><div class="about-grid">
           ${QA.filter(([k]) => p[k]).map(([k, q, ic]) => `<div class="qa"><i class="qa-ico"><svg class="i"><use href="#${ic}"/></svg></i>
             <div><h3>${q}</h3><p>${esc(p[k])}</p></div></div>`).join('')}</div></section>` : ''}
+      ${p.maker_about ? `<section class="maker"><h2>About the Maker</h2><div class="maker-card">
+      <span class="avatar lg">${esc(p.maker_about.name.charAt(0).toUpperCase())}</span>
+      <div><h3>${esc(p.maker_about.name)}</h3>
+        ${p.maker_about.about ? `<p>${esc(p.maker_about.about)}</p>` : ''}
+        ${Object.keys(p.maker_about.links).length ? socialIcons(p.maker_about.links) : ''}</div></div></section>` : ''}
       </article>`;
       el.addEventListener('click', e => { const g = e.target.closest('[data-shot]'); if (g) modal(`<img class="lightbox" src="${esc(g.dataset.shot)}" alt=""><div class="row-actions"><button class="btn" data-close>Close</button></div>`); });
       $$('.pd-desc a').forEach(a => { a.target = '_blank'; });
@@ -584,6 +591,10 @@
     const pf = $('#profileForm'), pw = $('#passwordForm');
     const p = await api('/api/me/profile/');
     ['username', 'email', 'first_name', 'last_name', 'display_name'].forEach(k => (pf.elements[k].value = p[k] || ''));
+    pf.elements.about.value = p.about || '';
+    $$('[data-social]', pf).forEach(i => (i.value = (p.social_links || {})[i.dataset.social] || ''));
+    const aboutCnt = $('.cnt', pf), setCnt = () => (aboutCnt.textContent = `${pf.elements.about.value.length}/600`);
+    pf.elements.about.addEventListener('input', setCnt); setCnt();
     if (p.google) $('input[name=email]', pf).closest('.field').querySelector('span').insertAdjacentHTML('beforeend', '<small>Google ✓</small>');
     if (!p.has_password) {                                   // Google-only account: "set" instead of "change"
       pw.elements.current_password.closest('.field').hidden = true;
@@ -597,7 +608,9 @@
       const btn = $('button[type=submit]', pf); btn.disabled = true;
       try {
         const out = await api('/api/me/profile/', { method: 'PATCH', body: {
-          first_name: pf.elements.first_name.value, last_name: pf.elements.last_name.value, display_name: pf.elements.display_name.value } });
+          first_name: pf.elements.first_name.value, last_name: pf.elements.last_name.value,
+          display_name: pf.elements.display_name.value, about: pf.elements.about.value,
+          social_links: Object.fromEntries($$('[data-social]', pf).map(i => [i.dataset.social, i.value.trim()]).filter(([, v]) => v)) } });
         showErrors(pf, { data: {}, message: '' }); $('.form-err', pf).classList.remove('show');
         const name = out.display_name || out.username;
         $$('.me .me-name').forEach(el => (el.textContent = name));
@@ -897,6 +910,60 @@
     });
     new MutationObserver(() => last && drawCharts(last)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     await Promise.all([loadSummary(), loadPayments(1)]);
+  };
+
+
+  /* ======================= EMBED CODE ======================= */
+  pages.embed = async () => {
+    const body = $('#embedBody');
+    const list = (await api('/api/me/products/?status=approved&page_size=50')).results.filter(p => p.is_live);
+    if (!list.length) {
+      body.innerHTML = '<div class="empty">Embed codes appear once one of your products is live. <a class="link" href="/submit/">Launch a product</a></div>';
+      return;
+    }
+    const site = $('.brand .label')?.textContent || 'Launchly';
+    const box = (id, label) => `<div><div class="code-label">${label}</div><div class="code-box"><pre id="${id}"></pre><button class="btn btn-sm" data-copy="${id}">Copy</button></div></div>`;
+    let theme = 'light';
+    body.innerHTML = `
+      <div class="embed-controls">
+        <label class="field"><span>Product</span><select id="emProd">${list.map(p => `<option value="${esc(p.slug)}">${esc(p.name)}</option>`).join('')}</select></label>
+        <div id="emTheme" class="tabs"><button class="tab on" data-theme="light">Light</button><button class="tab" data-theme="dark">Dark</button></div>
+      </div>
+      <section class="card embed-card"><div><h3>Product Card</h3><p class="muted">A live card with your logo, tagline and upvote count.</p></div>
+        <div class="embed-preview" id="pvCard"></div>${box('cardCode', 'Paste this into your site’s HTML')}</section>
+      <section class="card embed-card"><div><h3>“Featured on ${esc(site)}” Badge</h3><p class="muted">A small badge that links back to your launch.</p></div>
+        <div class="embed-preview" id="pvBadge"></div>${box('badgeCode', 'Paste this into your site’s HTML')}</section>
+      <section class="card embed-card"><div><h3>Application Name</h3><p class="muted">Just the name of your app, as a link to your page.</p></div>
+        ${box('nameHtml', 'HTML')}${box('nameMd', 'Markdown')}${box('nameUrl', 'Plain link')}</section>`;
+
+    const draw = () => {
+      const slug = $('#emProd').value, name = list.find(p => p.slug === slug).name, o = location.origin;
+      const url = `${o}/product/${slug}/`, card = `${o}/embed/${slug}/?theme=${theme}`, badge = `${o}/badge/${slug}.svg?theme=${theme}`;
+      const frame = `<iframe src="${card}" width="380" height="140" style="border:0;border-radius:16px;max-width:100%" loading="lazy" title="${esc(name)} on ${esc(site)}"></iframe>`;
+      $('#pvCard').innerHTML = frame;
+      $('#pvBadge').innerHTML = `<img src="${badge}" width="250" height="54" alt="">`;
+      $('#cardCode').textContent = frame;
+      $('#badgeCode').textContent = `<a href="${url}?ref=badge" target="_blank" rel="noopener"><img src="${badge}" alt="${esc(name)} on ${esc(site)}" width="250" height="54"></a>`;
+      $('#nameHtml').textContent = `<a href="${url}?ref=link" target="_blank" rel="noopener">${esc(name)}</a>`;
+      $('#nameMd').textContent = `[${name}](${url}?ref=link)`;
+      $('#nameUrl').textContent = url;
+    };
+    $('#emProd').addEventListener('change', draw);
+    $('#emTheme').addEventListener('click', e => {
+      const b = e.target.closest('[data-theme]'); if (!b) return;
+      theme = b.dataset.theme; $$('#emTheme .tab').forEach(t => t.classList.toggle('on', t === b)); draw();
+    });
+    body.addEventListener('click', async e => {
+      const b = e.target.closest('[data-copy]'); if (!b) return;
+      const el = $('#' + b.dataset.copy);
+      try { await navigator.clipboard.writeText(el.textContent); }
+      catch (err) {   // older browsers / non-secure pages
+        const r = document.createRange(); r.selectNodeContents(el);
+        const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand('copy'); s.removeAllRanges();
+      }
+      b.textContent = 'Copied ✓'; setTimeout(() => (b.textContent = 'Copy'), 1500);
+    });
+    draw();
   };
 
   const run = pages[document.body.dataset.page];

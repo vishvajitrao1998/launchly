@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block page %}settings{% endblock %}
-{% block title %}Settings · LetsPublic{% endblock %}
+{% block title %}Profile · LetsPublic{% endblock %}
 {% block content %}
 <div class="narrow">
   <section class="page-head center">
-    <h1>Settings</h1>
+    <h1>Profile</h1>
     <p class="muted">Manage your profile and password.</p>
   </section>
 
@@ -20,9 +20,23 @@
       <label class="field"><span>Last name</span><input name="last_name" maxlength="150" autocomplete="family-name"><em class="err"></em></label>
     </div>
     <label class="field"><span>Display name <small>shown on your products</small></span>
-      <input name="display_name" maxlength="40" placeholder="How should we show your name?"><em class="err"></em></label>
+    <input name="display_name" maxlength="40" placeholder="How should we show your name?"><em class="err"></em></label>
+
+    <label class="field"><span>About You <small class="cnt">0/600</small></span>
+    <textarea name="about" rows="4" maxlength="600" placeholder="Who are you and what are you building? Shown at the bottom of your product pages."></textarea><em class="err"></em></label>
+    <fieldset class="field">
+      <span>Your Social Links <small>Optional</small></span>
+      <div class="social-grid">
+        {% for key, label in social %}
+        <label class="social-in"><b>{{ label }}</b><input type="url" data-social="{{ key }}" maxlength="200" placeholder="https://"></label>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="social_links"><em class="err"></em>
+    </fieldset>
     <div class="form-foot"><em class="err form-err"></em><button class="btn btn-primary" type="submit">Save Changes</button></div>
   </form>
+
+  
 
   <form id="passwordForm" class="card form-card" style="margin-top:22px" novalidate>
     <h3 id="pwTitle">Change password</h3>

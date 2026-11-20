@@ -54,6 +54,10 @@ urlpatterns = [
     path("robots.txt", seo_views.robots_txt),
     path("sitemap.xml", seo_views.sitemap_xml),
 
+    path("embed-code/", views.embed_page, name="embed_code"),
+    path("embed/<slug:slug>/", views.embed_card, name="embed_card"),
+    path("badge/<slug:slug>.svg", views.badge_svg, name="badge"),
+
     # pages
     path("settings/", views.settings_page, name="account"),
     path("p/about/", TemplateView.as_view(template_name="pages/about.html"), name="about"),
